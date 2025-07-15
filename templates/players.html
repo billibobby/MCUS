@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Players - MCUS{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2"></i>Online Players
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if players %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Player Name</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for player in players %}
+                                <tr>
+                                    <td>{{ player.name }}</td>
+                                    <td>
+                                        <span class="status-online">
+                                            <i class="fas fa-circle me-1"></i>Online
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-warning btn-sm" onclick="sendCommand('kick {{ player.name }}')">
+                                            <i class="fas fa-user-times"></i> Kick
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No players online</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-terminal me-2"></i>Server Commands
+                </h5>
+            </div>
+            <div class="card-body">
+                <form action="/send_command" method="post">
+                    <div class="mb-3">
+                        <label for="command" class="form-label">Command</label>
+                        <input type="text" class="form-control" id="command" name="command" 
+                               placeholder="Enter server command..." required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-2"></i>Send Command
+                    </button>
+                </form>
+                
+                <hr>
+                <h6>Quick Commands:</h6>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" onclick="sendCommand('list')">
+                        <i class="fas fa-list me-1"></i>List Players
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="sendCommand('save-all')">
+                        <i class="fas fa-save me-1"></i>Save World
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="sendCommand('time set day')">
+                        <i class="fas fa-sun me-1"></i>Set Day
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="sendCommand('weather clear')">
+                        <i class="fas fa-cloud-sun me-1"></i>Clear Weather
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function sendCommand(command) {
+    document.getElementById('command').value = command;
+    document.querySelector('form').submit();
+}
+</script>
+{% endblock %} 

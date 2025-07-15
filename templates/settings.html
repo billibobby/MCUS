@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - MCUS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-cog me-2"></i>Server Settings
+        </h5>
+    </div>
+    <div class="card-body">
+        <form action="/save_settings" method="post">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Basic Settings</h6>
+                    <div class="mb-3">
+                        <label for="server_name" class="form-label">Server Name</label>
+                        <input type="text" class="form-control" id="server_name" name="server_name" 
+                               value="{{ config.get('server_name', 'MCUS Server') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="max_players" class="form-label">Max Players</label>
+                        <input type="number" class="form-control" id="max_players" name="max_players" 
+                               value="{{ config.get('max_players', 20) }}" min="1" max="100" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="port" class="form-label">Server Port</label>
+                        <input type="number" class="form-control" id="port" name="port" 
+                               value="{{ config.get('port', 25565) }}" min="1024" max="65535" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="world_name" class="form-label">World Name</label>
+                        <input type="text" class="form-control" id="world_name" name="world_name" 
+                               value="{{ config.get('world_name', 'world') }}" required>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <h6>Minecraft Settings</h6>
+                    <div class="mb-3">
+                        <label for="minecraft_version" class="form-label">Minecraft Version</label>
+                        <select class="form-select" id="minecraft_version" name="minecraft_version">
+                            <option value="1.19.2" {{ 'selected' if config.get('minecraft_version') == '1.19.2' else '' }}>1.19.2</option>
+                            <option value="1.18.2" {{ 'selected' if config.get('minecraft_version') == '1.18.2' else '' }}>1.18.2</option>
+                            <option value="1.17.1" {{ 'selected' if config.get('minecraft_version') == '1.17.1' else '' }}>1.17.1</option>
+                            <option value="1.16.5" {{ 'selected' if config.get('minecraft_version') == '1.16.5' else '' }}>1.16.5</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="mod_loader" class="form-label">Mod Loader</label>
+                        <select class="form-select" id="mod_loader" name="mod_loader">
+                            <option value="forge" {{ 'selected' if config.get('mod_loader') == 'forge' else '' }}>Forge</option>
+                            <option value="fabric" {{ 'selected' if config.get('mod_loader') == 'fabric' else '' }}>Fabric</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="java_memory" class="form-label">Java Memory</label>
+                        <select class="form-select" id="java_memory" name="java_memory">
+                            <option value="2G" {{ 'selected' if config.get('java_memory') == '2G' else '' }}>2 GB</option>
+                            <option value="4G" {{ 'selected' if config.get('java_memory') == '4G' else '' }}>4 GB</option>
+                            <option value="6G" {{ 'selected' if config.get('java_memory') == '6G' else '' }}>6 GB</option>
+                            <option value="8G" {{ 'selected' if config.get('java_memory') == '8G' else '' }}>8 GB</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-12">
+                    <h6>Backup Settings</h6>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="auto_backup" name="auto_backup" 
+                               {{ 'checked' if config.get('auto_backup', True) else '' }}>
+                        <label class="form-check-label" for="auto_backup">
+                            Enable automatic backups
+                        </label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="backup_interval" class="form-label">Backup Interval (seconds)</label>
+                        <input type="number" class="form-control" id="backup_interval" name="backup_interval" 
+                               value="{{ config.get('backup_interval', 3600) }}" min="300" required>
+                        <small class="form-text text-muted">Minimum 5 minutes (300 seconds)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Save Settings
+                </button>
+                <a href="/" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

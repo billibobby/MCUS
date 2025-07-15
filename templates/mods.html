@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Mods - MCUS{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-puzzle-piece me-2"></i>Installed Mods
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if mods %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Mod Name</th>
+                                    <th>Size</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mod in mods %}
+                                <tr>
+                                    <td>{{ mod.name }}</td>
+                                    <td>{{ "%.1f"|format(mod.size / 1024 / 1024) }} MB</td>
+                                    <td>
+                                        <span class="status-{{ 'online' if mod.enabled else 'offline' }}">
+                                            {{ 'Enabled' if mod.enabled else 'Disabled' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="/remove_mod/{{ mod.name }}" class="btn btn-danger btn-sm" 
+                                           onclick="return confirm('Are you sure you want to remove this mod?')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No mods installed</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-upload me-2"></i>Upload Mod
+                </h5>
+            </div>
+            <div class="card-body">
+                <form action="/upload_mod" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="mod_file" class="form-label">Select JAR file</label>
+                        <input type="file" class="form-control" id="mod_file" name="mod_file" accept=".jar" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i>Upload Mod
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-download me-2"></i>Download Mods
+                </h5>
+            </div>
+            <div class="card-body">
+                <a href="/search_modrinth" class="btn btn-success w-100 mb-2">
+                    <i class="fas fa-search me-2"></i>Search Modrinth
+                </a>
+                <a href="/popular_mods" class="btn btn-info w-100 mb-2">
+                    <i class="fas fa-star me-2"></i>Popular Mods
+                </a>
+                <a href="/install_forge" class="btn btn-warning w-100">
+                    <i class="fas fa-download me-2"></i>Install Forge
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

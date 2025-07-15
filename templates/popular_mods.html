@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Popular Mods - MCUS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-star me-2"></i>Popular Mods
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if mods %}
+            <div class="row">
+                {% for mod in mods %}
+                <div class="col-md-6 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-title">{{ mod.name }}</h6>
+                            <p class="card-text text-muted">{{ mod.description[:100] }}{% if mod.description|length > 100 %}...{% endif %}</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="fas fa-user me-1"></i>{{ mod.author }}<br>
+                                    <i class="fas fa-download me-1"></i>{{ "{:,}".format(mod.downloads) }} downloads<br>
+                                    <i class="fas fa-heart me-1"></i>{{ "{:,}".format(mod.followers) }} followers
+                                </small>
+                                <a href="/download_mod/{{ mod.id }}" class="btn btn-success btn-sm">
+                                    <i class="fas fa-download me-1"></i>Download
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">No popular mods found</p>
+        {% endif %}
+        
+        <div class="mt-3">
+            <a href="/mods" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Mods
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %} 
