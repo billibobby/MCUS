@@ -3,110 +3,437 @@
 {% block title %}Select Forge Version - MCUS{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
+<div class="container-fluid mt-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
         <div class="col-12">
             <div class="card border-primary">
                 <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">
-                        <i class="fas fa-download me-2"></i>Select Forge Version
-                    </h4>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>Choose your Minecraft and Forge version:</strong><br>
-                        • <strong>Recommended</strong> versions are stable and well-tested<br>
-                        • <strong>Latest</strong> versions have newest features but may be less stable<br>
-                        • Make sure your mods are compatible with your chosen version
-                    </div>
-
-                    <form action="{{ url_for('install_forge_version') }}" method="post">
-                        <div class="row">
-                            {% for mc_version, version_info in forge_versions.items() %}
-                            <div class="col-md-6 col-lg-3 mb-4">
-                                <div class="card h-100 border-{% if mc_version == '1.19.2' %}success{% else %}secondary{% endif %}">
-                                    <div class="card-header bg-{% if mc_version == '1.19.2' %}success{% else %}secondary{% endif %} text-white">
-                                        <h6 class="mb-0">
-                                            <i class="fas fa-cube me-2"></i>{{ version_info.name }}
-                                            {% if mc_version == '1.19.2' %}
-                                            <span class="badge bg-light text-dark ms-2">Default</span>
-                                            {% endif %}
-                                        </h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Minecraft Version:</label>
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="radio" name="minecraft_version" 
-                                                       id="mc_{{ mc_version }}" value="{{ mc_version }}"
-                                                       {% if mc_version == '1.19.2' %}checked{% endif %}>
-                                                <label class="form-check-label" for="mc_{{ mc_version }}">
-                                                    {{ version_info.name }}
-                                                </label>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label class="form-label fw-bold">Forge Build:</label>
-                                            <select class="form-select" name="forge_build" id="forge_{{ mc_version }}">
-                                                <option value="{{ version_info.recommended }}" class="text-success">
-                                                    🟢 {{ version_info.recommended }} (Recommended)
-                                                </option>
-                                                <option value="{{ version_info.latest }}" class="text-primary">
-                                                    🔵 {{ version_info.latest }} (Latest)
-                                                </option>
-                                                {% for build in version_info.builds[2:] %}
-                                                <option value="{{ build }}" class="text-secondary">
-                                                    ⚪ {{ build }}
-                                                </option>
-                                                {% endfor %}
-                                            </select>
-                                        </div>
-                                        
-                                        <div class="small text-muted">
-                                            <i class="fas fa-clock me-1"></i>Installation time: ~2-5 minutes
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="row mt-4">
-                            <div class="col-12">
-                                <div class="card border-warning">
-                                    <div class="card-header bg-warning text-dark">
-                                        <h6 class="mb-0">
-                                            <i class="fas fa-exclamation-triangle me-2"></i>Important Notes
-                                        </h6>
-                                    </div>
-                                    <div class="card-body">
-                                        <ul class="mb-0">
-                                            <li><strong>Java Required:</strong> Make sure you have Java 8 or higher installed</li>
-                                            <li><strong>Internet Connection:</strong> Forge installer will be downloaded (~50-100MB)</li>
-                                            <li><strong>Mod Compatibility:</strong> Choose a version that works with your mods</li>
-                                            <li><strong>Server Files:</strong> Forge will create necessary server files automatically</li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{{ url_for('mods') }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>Back to Mods
-                            </a>
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-download me-2"></i>Install Selected Version
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <i class="fas fa-download me-2"></i>Select Forge Version
+                        </h3>
+                        <div>
+                            <button class="btn btn-light btn-sm" onclick="toggleAdvancedInfo()">
+                                <i class="fas fa-info-circle me-1"></i>Advanced Info
+                            </button>
+                            <button class="btn btn-warning btn-sm" onclick="showCompatibilityGuide()">
+                                <i class="fas fa-question-circle me-1"></i>Compatibility Guide
                             </button>
                         </div>
-                    </form>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <p class="mb-2">
+                                <strong>Choose the perfect Minecraft and Forge version for your server.</strong>
+                                Each version has been carefully tested for stability and mod compatibility.
+                            </p>
+                            <div class="small text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Forge is the most popular mod loader for Minecraft, enabling thousands of mods.
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="stats">
+                                <div class="stat-item">
+                                    <span class="stat-number">{{ forge_versions|length }}</span>
+                                    <span class="stat-label">Minecraft Versions</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">{{ forge_versions.values() | map(attribute='builds') | map('length') | sum }}</span>
+                                    <span class="stat-label">Forge Builds</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Advanced Info Section -->
+    <div class="row mb-4" id="advancedInfoSection" style="display: none;">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>Advanced Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>What is Forge?</h6>
+                            <p class="small">
+                                Forge is a free, open-source modding API for Minecraft that provides the foundation 
+                                for thousands of mods. It handles compatibility, loading, and provides APIs for mod developers.
+                            </p>
+                            
+                            <h6>Version Types</h6>
+                            <ul class="small">
+                                <li><strong>Recommended:</strong> Most stable, thoroughly tested</li>
+                                <li><strong>Latest:</strong> Newest features, may have bugs</li>
+                                <li><strong>Stable:</strong> Previous stable releases</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Installation Process</h6>
+                            <ol class="small">
+                                <li>Download Forge installer (~50-100MB)</li>
+                                <li>Run installer with server flag</li>
+                                <li>Extract server files</li>
+                                <li>Configure server properties</li>
+                                <li>Ready to start server</li>
+                            </ol>
+                            
+                            <h6>System Requirements</h6>
+                            <ul class="small">
+                                <li>Java 8+ (17+ recommended)</li>
+                                <li>2GB+ RAM available</li>
+                                <li>Stable internet connection</li>
+                                <li>Windows/Linux/macOS</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Version Selection Form -->
+    <form action="{{ url_for('install_forge_version') }}" method="post" id="forgeForm">
+        <div class="row">
+            {% for mc_version, version_info in forge_versions.items() %}
+            <div class="col-lg-6 col-xl-4 mb-4">
+                <div class="card h-100 border-{% if mc_version == '1.19.2' %}success{% elif version_info.status == 'Latest Stable' %}primary{% elif version_info.status == 'Popular' %}info{% elif version_info.status == 'LTS' %}warning{% else %}secondary{% endif %}">
+                    <div class="card-header bg-{% if mc_version == '1.19.2' %}success{% elif version_info.status == 'Latest Stable' %}primary{% elif version_info.status == 'Popular' %}info{% elif version_info.status == 'LTS' %}warning{% else %}secondary{% endif %} text-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="fas fa-cube me-2"></i>{{ version_info.name }}
+                            </h6>
+                            <div class="text-end">
+                                {% if mc_version == '1.19.2' %}
+                                    <span class="badge bg-light text-dark">Recommended</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark">{{ version_info.status }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        <!-- Version Description -->
+                        <p class="small text-muted mb-3">{{ version_info.description }}</p>
+                        
+                        <!-- Version Stats -->
+                        <div class="row text-center mb-3">
+                            <div class="col-4">
+                                <div class="stat">
+                                    <div class="stat-number">{{ version_info.mod_count }}</div>
+                                    <div class="stat-label">Mods</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat">
+                                    <div class="stat-number">{{ version_info.java_version }}</div>
+                                    <div class="stat-label">Java</div>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="stat">
+                                    <div class="stat-number">{{ version_info.performance }}</div>
+                                    <div class="stat-label">Performance</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Stability Indicator -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="small">Stability:</span>
+                                <div class="stability-indicator">
+                                    {% if version_info.stability == 'Extremely Stable' %}
+                                        <span class="badge bg-success">★★★★★</span>
+                                    {% elif version_info.stability == 'Very Stable' %}
+                                        <span class="badge bg-success">★★★★☆</span>
+                                    {% elif version_info.stability == 'Stable' %}
+                                        <span class="badge bg-warning">★★★☆☆</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">★★☆☆☆</span>
+                                    {% endif %}
+                                    <span class="small ms-1">{{ version_info.stability }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Minecraft Version Selection -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Minecraft Version:</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="minecraft_version" 
+                                       id="mc_{{ mc_version }}" value="{{ mc_version }}"
+                                       {% if mc_version == '1.19.2' %}checked{% endif %}>
+                                <label class="form-check-label" for="mc_{{ mc_version }}">
+                                    {{ version_info.name }}
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Forge Build Selection -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Forge Build:</label>
+                            <select class="form-select" name="forge_build" id="forge_{{ mc_version }}">
+                                {% for build in version_info.builds %}
+                                <option value="{{ build.version }}" 
+                                        {% if build.type == 'recommended' %}selected{% endif %}
+                                        class="text-{% if build.type == 'recommended' %}success{% elif build.type == 'latest' %}primary{% else %}secondary{% endif %}">
+                                    {% if build.type == 'recommended' %}🟢{% elif build.type == 'latest' %}🔵{% else %}⚪{% endif %}
+                                    {{ build.version }}
+                                    {% if build.type == 'recommended' %}(Recommended){% elif build.type == 'latest' %}(Latest){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <!-- Build Details -->
+                        <div class="build-details small text-muted">
+                            <div class="mb-2">
+                                <strong>Latest Build:</strong> {{ version_info.builds[0].version }}
+                                <br><strong>Release Date:</strong> {{ version_info.builds[0].date }}
+                                <br><strong>Notes:</strong> {{ version_info.builds[0].notes }}
+                            </div>
+                        </div>
+                        
+                        <!-- Installation Time -->
+                        <div class="small text-muted">
+                            <i class="fas fa-clock me-1"></i>Installation time: ~2-5 minutes
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Important Notes Section -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Important Notes
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Before Installation:</h6>
+                                <ul class="mb-0">
+                                    <li><strong>Java Required:</strong> Make sure you have Java 8 or higher installed</li>
+                                    <li><strong>Internet Connection:</strong> Forge installer will be downloaded (~50-100MB)</li>
+                                    <li><strong>Mod Compatibility:</strong> Choose a version that works with your mods</li>
+                                    <li><strong>Server Files:</strong> Forge will create necessary server files automatically</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>After Installation:</h6>
+                                <ul class="mb-0">
+                                    <li><strong>Server Properties:</strong> Will be automatically configured</li>
+                                    <li><strong>Mods Folder:</strong> Ready for mod installation</li>
+                                    <li><strong>World Generation:</strong> Compatible with vanilla and modded worlds</li>
+                                    <li><strong>Updates:</strong> Can be updated later if needed</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex justify-content-between mt-4">
+            <a href="{{ url_for('mods') }}" class="btn btn-secondary btn-lg">
+                <i class="fas fa-arrow-left me-2"></i>Back to Mods
+            </a>
+            <div>
+                <button type="button" class="btn btn-info btn-lg me-2" onclick="showCompatibilityGuide()">
+                    <i class="fas fa-question-circle me-2"></i>Compatibility Guide
+                </button>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-download me-2"></i>Install Selected Version
+                </button>
+            </div>
+        </div>
+    </form>
 </div>
+
+<!-- Compatibility Guide Modal -->
+<div class="modal fade" id="compatibilityModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-question-circle me-2"></i>Forge Compatibility Guide
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Choosing the Right Version</h6>
+                        <div class="accordion" id="compatibilityAccordion">
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+                                        For New Servers
+                                    </button>
+                                </h2>
+                                <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#compatibilityAccordion">
+                                    <div class="accordion-body">
+                                        <strong>Recommended:</strong> Minecraft 1.19.2 with Forge 43.2.0<br>
+                                        <strong>Why:</strong> Most stable, extensive mod library, excellent community support
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                                        For Latest Features
+                                    </button>
+                                </h2>
+                                <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#compatibilityAccordion">
+                                    <div class="accordion-body">
+                                        <strong>Recommended:</strong> Minecraft 1.20.4 with Forge 49.0.3<br>
+                                        <strong>Why:</strong> Latest Minecraft features, newest mods, cutting-edge content
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                                        For Legacy Mods
+                                    </button>
+                                </h2>
+                                <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#compatibilityAccordion">
+                                    <div class="accordion-body">
+                                        <strong>Recommended:</strong> Minecraft 1.16.5 with Forge 36.2.0<br>
+                                        <strong>Why:</strong> Classic mods, established modpacks, proven stability
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Version Comparison</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Version</th>
+                                        <th>Mod Count</th>
+                                        <th>Stability</th>
+                                        <th>Performance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for mc_version, version_info in forge_versions.items() %}
+                                    <tr>
+                                        <td>{{ mc_version }}</td>
+                                        <td>{{ version_info.mod_count }}</td>
+                                        <td>
+                                            {% if version_info.stability == 'Extremely Stable' %}
+                                                <span class="badge bg-success">★★★★★</span>
+                                            {% elif version_info.stability == 'Very Stable' %}
+                                                <span class="badge bg-success">★★★★☆</span>
+                                            {% elif version_info.stability == 'Stable' %}
+                                                <span class="badge bg-warning">★★★☆☆</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">★★☆☆☆</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ version_info.performance }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <h6>Common Issues & Solutions</h6>
+                        <div class="alert alert-warning">
+                            <strong>Java Version:</strong> Make sure you have the correct Java version installed.<br>
+                            <strong>Memory:</strong> Allocate at least 2GB RAM for the server.<br>
+                            <strong>Mod Conflicts:</strong> Some mods may conflict with each other.<br>
+                            <strong>Updates:</strong> Keep Forge and mods updated for best compatibility.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.stats {
+    display: flex;
+    gap: 20px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.stat {
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+.stability-indicator {
+    display: flex;
+    align-items: center;
+}
+
+.build-details {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    border-left: 3px solid #007bff;
+}
+
+.card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+</style>
 
 <script>
 // Auto-select the corresponding Forge build when Minecraft version is selected
@@ -115,23 +442,60 @@ document.querySelectorAll('input[name="minecraft_version"]').forEach(radio => {
         const mcVersion = this.value;
         const forgeSelect = document.getElementById(`forge_${mcVersion}`);
         if (forgeSelect) {
-            forgeSelect.selectedIndex = 0; // Select recommended version
+            // Select recommended version (first option)
+            forgeSelect.selectedIndex = 0;
         }
     });
 });
 
-// Show selected version info
-document.querySelector('form').addEventListener('submit', function(e) {
+function toggleAdvancedInfo() {
+    const advancedInfoSection = document.getElementById('advancedInfoSection');
+    advancedInfoSection.style.display = advancedInfoSection.style.display === 'none' ? 'block' : 'none';
+}
+
+function showCompatibilityGuide() {
+    new bootstrap.Modal(document.getElementById('compatibilityModal')).show();
+}
+
+// Show selected version info and confirmation
+document.getElementById('forgeForm').addEventListener('submit', function(e) {
     const selectedMc = document.querySelector('input[name="minecraft_version"]:checked');
     const selectedForge = document.querySelector('select[name="forge_build"]:checked') || 
                          document.querySelector('select[name="forge_build"]');
     
     if (selectedMc && selectedForge) {
-        const confirmMsg = `Are you sure you want to install Forge ${selectedMc.value}-${selectedForge.value}?\n\nThis will download and install the Forge server files.`;
+        const confirmMsg = `Are you sure you want to install Forge ${selectedMc.value}-${selectedForge.value}?\n\n` +
+                          `This will:\n` +
+                          `• Download the Forge installer (~50-100MB)\n` +
+                          `• Install Forge server files\n` +
+                          `• Configure server properties\n` +
+                          `• Take 2-5 minutes to complete\n\n` +
+                          `Do you want to continue?`;
+        
         if (!confirm(confirmMsg)) {
             e.preventDefault();
         }
     }
+});
+
+// Update build details when selection changes
+document.querySelectorAll('select[name="forge_build"]').forEach(select => {
+    select.addEventListener('change', function() {
+        const card = this.closest('.card');
+        const detailsDiv = card.querySelector('.build-details');
+        const selectedOption = this.options[this.selectedIndex];
+        const buildVersion = selectedOption.value;
+        
+        // Update the build details display
+        detailsDiv.innerHTML = `
+            <div class="mb-2">
+                <strong>Selected Build:</strong> ${buildVersion}<br>
+                <strong>Type:</strong> ${selectedOption.text.includes('Recommended') ? 'Recommended' : 
+                                       selectedOption.text.includes('Latest') ? 'Latest' : 'Stable'}<br>
+                <strong>Status:</strong> Ready for installation
+            </div>
+        `;
+    });
 });
 </script>
 {% endblock %} 

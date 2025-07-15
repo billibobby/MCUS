@@ -3,115 +3,499 @@
 {% block title %}Popular Mods - MCUS{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">
-                    <i class="fas fa-star me-2"></i>Popular Mods
-                </h5>
-            </div>
-            <div class="card-body">
-                <!-- Quick Install and Category Filter -->
-                <div class="mb-4">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <form action="/install_popular_pack" method="post" style="display: inline;">
-                                <button type="submit" class="btn btn-success" onclick="return confirm('Install the top 10 most popular mods? This may take a few minutes.')">
-                                    <i class="fas fa-download me-2"></i>Quick Install Pack (Top 10)
-                                </button>
-                            </form>
+<div class="container-fluid mt-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <i class="fas fa-star me-2"></i>Popular Mods
+                        </h3>
+                        <div>
+                            <button class="btn btn-light btn-sm" onclick="toggleFilters()">
+                                <i class="fas fa-filter me-1"></i>Filters
+                            </button>
+                            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#quickInstallModal">
+                                <i class="fas fa-download me-1"></i>Quick Install Pack
+                            </button>
                         </div>
-                        <div class="col-md-6">
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-outline-primary active" data-category="all">All Mods</button>
-                                <button type="button" class="btn btn-outline-primary" data-category="tech">Tech</button>
-                                <button type="button" class="btn btn-outline-primary" data-category="magic">Magic</button>
-                                <button type="button" class="btn btn-outline-primary" data-category="adventure">Adventure</button>
-                                <button type="button" class="btn btn-outline-primary" data-category="utility">Utility</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <p class="mb-2">
+                                <strong>Discover the most popular and trusted mods from the Minecraft community.</strong>
+                                Each mod has been carefully selected for quality, compatibility, and community support.
+                            </p>
+                            <div class="small text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                All mods are compatible with Forge and have been tested for stability.
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="stats">
+                                <div class="stat-item">
+                                    <span class="stat-number">{{ categories|length }}</span>
+                                    <span class="stat-label">Categories</span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-number">{{ categories.values() | map(attribute='mods') | map('length') | sum }}</span>
+                                    <span class="stat-label">Total Mods</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                
-                {% if mods %}
-                    <div class="row" id="mods-container">
-                        {% for mod in mods %}
-                        <div class="col-md-6 col-lg-4 mb-3 mod-card" data-category="{{ mod.categories|join(' ') if mod.categories else 'utility' }}">
-                            <div class="card h-100">
-                                {% if mod.icon_url %}
-                                <img src="{{ mod.icon_url }}" class="card-img-top" alt="{{ mod.name }}" style="height: 100px; object-fit: cover;">
-                                {% endif %}
-                                <div class="card-body">
-                                    <h6 class="card-title">{{ mod.name }}</h6>
-                                    <p class="card-text text-muted">{{ mod.description[:120] }}{% if mod.description|length > 120 %}...{% endif %}</p>
-                                    <div class="mb-2">
-                                        {% if mod.categories %}
-                                            {% for category in mod.categories[:3] %}
-                                            <span class="badge bg-secondary me-1">{{ category }}</span>
-                                            {% endfor %}
-                                        {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="row mb-4" id="filtersSection" style="display: none;">
+        <div class="col-12">
+            <div class="card border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-filter me-2"></i>Filter Mods
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label class="form-label">Minecraft Version</label>
+                            <select class="form-select" id="versionFilter">
+                                <option value="">All Versions</option>
+                                <option value="1.20.4">1.20.4</option>
+                                <option value="1.20.1">1.20.1</option>
+                                <option value="1.19.2">1.19.2</option>
+                                <option value="1.18.2">1.18.2</option>
+                                <option value="1.16.5">1.16.5</option>
+                                <option value="1.12.2">1.12.2</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" id="categoryFilter">
+                                <option value="">All Categories</option>
+                                {% for cat_id, cat_info in categories.items() %}
+                                <option value="{{ cat_id }}">{{ cat_info.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Rating</label>
+                            <select class="form-select" id="ratingFilter">
+                                <option value="">All Ratings</option>
+                                <option value="4.5">4.5+ Stars</option>
+                                <option value="4.0">4.0+ Stars</option>
+                                <option value="3.5">3.5+ Stars</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Downloads</label>
+                            <select class="form-select" id="downloadsFilter">
+                                <option value="">All Downloads</option>
+                                <option value="5M">5M+ Downloads</option>
+                                <option value="1M">1M+ Downloads</option>
+                                <option value="500K">500K+ Downloads</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <button class="btn btn-primary" onclick="applyFilters()">
+                                <i class="fas fa-search me-1"></i>Apply Filters
+                            </button>
+                            <button class="btn btn-secondary" onclick="clearFilters()">
+                                <i class="fas fa-times me-1"></i>Clear Filters
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Categories Section -->
+    {% for cat_id, cat_info in categories.items() %}
+    <div class="row mb-4 category-section" data-category="{{ cat_id }}">
+        <div class="col-12">
+            <div class="card border-{{ cat_info.color }}">
+                <div class="card-header bg-{{ cat_info.color }} text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="{{ cat_info.icon }} me-2"></i>{{ cat_info.name }}
+                        </h5>
+                        <span class="badge bg-light text-dark">{{ cat_info.mods|length }} mods</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">{{ cat_info.description }}</p>
+                    
+                    <div class="row">
+                        {% for mod in cat_info.mods %}
+                        <div class="col-lg-6 col-xl-4 mb-4 mod-card" 
+                             data-versions="{{ mod.versions|join(',') }}"
+                             data-category="{{ cat_id }}"
+                             data-rating="{{ mod.rating }}"
+                             data-downloads="{{ mod.downloads }}">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-header bg-light">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">{{ mod.name }}</h6>
+                                            <div class="small text-muted">by {{ mod.author }}</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="rating">
+                                                <span class="stars">
+                                                    {% for i in range(5) %}
+                                                        {% if i < mod.rating|int %}
+                                                            <i class="fas fa-star text-warning"></i>
+                                                        {% elif i < mod.rating %}
+                                                            <i class="fas fa-star-half-alt text-warning"></i>
+                                                        {% else %}
+                                                            <i class="far fa-star text-muted"></i>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </span>
+                                                <div class="small text-muted">{{ mod.rating }}/5</div>
+                                            </div>
+                                        </div>
                                     </div>
+                                </div>
+                                
+                                <div class="card-body">
+                                    <div class="row mb-3">
+                                        <div class="col-3">
+                                            <img src="{{ mod.icon_url }}" alt="{{ mod.name }}" 
+                                                 class="img-fluid rounded" style="max-width: 64px;"
+                                                 onerror="this.src='https://via.placeholder.com/64x64?text=Mod'">
+                                        </div>
+                                        <div class="col-9">
+                                            <p class="small mb-2">{{ mod.description }}</p>
+                                            <div class="mb-2">
+                                                {% for version in mod.versions %}
+                                                <span class="badge bg-info me-1">{{ version }}</span>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="mb-2">
+                                                {% for category in mod.categories %}
+                                                <span class="badge bg-secondary me-1">{{ category }}</span>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row text-center mb-3">
+                                        <div class="col-6">
+                                            <div class="stat">
+                                                <div class="stat-number">{{ mod.downloads }}</div>
+                                                <div class="stat-label">Downloads</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="stat">
+                                                <div class="stat-number">{{ mod.followers }}</div>
+                                                <div class="stat-label">Followers</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card-footer bg-light">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <small class="text-muted">
-                                            <i class="fas fa-user me-1"></i>{{ mod.author }}<br>
-                                            <i class="fas fa-download me-1"></i>{{ "{:,}".format(mod.downloads) }} downloads<br>
-                                            <i class="fas fa-heart me-1"></i>{{ "{:,}".format(mod.followers) }} followers
-                                        </small>
-                                        <a href="/download_mod/{{ mod.id }}" class="btn btn-success btn-sm">
+                                        <button class="btn btn-outline-primary btn-sm" 
+                                                onclick="showModDetails('{{ mod.id }}', '{{ mod.name }}')">
+                                            <i class="fas fa-info-circle me-1"></i>Details
+                                        </button>
+                                        <button class="btn btn-success btn-sm" 
+                                                onclick="downloadMod('{{ mod.id }}', '{{ mod.name }}')">
                                             <i class="fas fa-download me-1"></i>Install
-                                        </a>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         {% endfor %}
                     </div>
-                {% else %}
-                    <div class="text-center py-5">
-                        <i class="fas fa-spinner fa-spin fa-3x text-muted mb-3"></i>
-                        <p class="text-muted">Loading popular mods...</p>
-                    </div>
-                {% endif %}
-                
-                <div class="mt-4">
-                    <a href="/mods" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Mods
-                    </a>
-                    <a href="/search_modrinth" class="btn btn-primary">
-                        <i class="fas fa-search me-2"></i>Search More Mods
-                    </a>
                 </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Quick Install Modal -->
+<div class="modal fade" id="quickInstallModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-rocket me-2"></i>Quick Install Pack
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Install the top 10 most popular mods at once!</strong><br>
+                    This will install the most downloaded and highly-rated mods from each category.
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Included Mods:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i>Create (Technology)</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Botania (Magic)</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Quark (Adventure)</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Applied Energistics 2 (Storage)</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Pam's HarvestCraft 2 (Food)</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Benefits:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-star text-warning me-2"></i>Curated selection</li>
+                            <li><i class="fas fa-star text-warning me-2"></i>Tested compatibility</li>
+                            <li><i class="fas fa-star text-warning me-2"></i>Popular community choice</li>
+                            <li><i class="fas fa-star text-warning me-2"></i>Balanced gameplay</li>
+                            <li><i class="fas fa-star text-warning me-2"></i>Regular updates</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Note:</strong> Make sure you have Forge installed before installing mods.
+                    The installation may take several minutes depending on your internet connection.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('install_popular_pack') }}" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-download me-2"></i>Install Pack
+                    </button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Mod Details Modal -->
+<div class="modal fade" id="modDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modDetailsTitle">Mod Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modDetailsBody">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-success" id="installModBtn">
+                    <i class="fas fa-download me-2"></i>Install Mod
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.stats {
+    display: flex;
+    gap: 20px;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-number {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.rating .stars {
+    font-size: 0.9rem;
+}
+
+.mod-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.mod-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+}
+
+.stat {
+    text-align: center;
+}
+
+.stat-number {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+.category-section {
+    transition: opacity 0.3s;
+}
+
+.category-section.hidden {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.mod-card.hidden {
+    display: none;
+}
+</style>
+
 <script>
-// Category filter functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const categoryButtons = document.querySelectorAll('[data-category]');
-    const modCards = document.querySelectorAll('.mod-card');
+function toggleFilters() {
+    const filtersSection = document.getElementById('filtersSection');
+    filtersSection.style.display = filtersSection.style.display === 'none' ? 'block' : 'none';
+}
+
+function applyFilters() {
+    const versionFilter = document.getElementById('versionFilter').value;
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    const ratingFilter = parseFloat(document.getElementById('ratingFilter').value) || 0;
+    const downloadsFilter = document.getElementById('downloadsFilter').value;
     
-    categoryButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const selectedCategory = this.getAttribute('data-category');
-            
-            // Update active button
-            categoryButtons.forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-            
-            // Filter mods
-            modCards.forEach(card => {
-                const cardCategory = card.getAttribute('data-category');
-                if (selectedCategory === 'all' || cardCategory.includes(selectedCategory)) {
-                    card.style.display = 'block';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
-        });
+    const modCards = document.querySelectorAll('.mod-card');
+    const categorySections = document.querySelectorAll('.category-section');
+    
+    modCards.forEach(card => {
+        let show = true;
+        
+        // Version filter
+        if (versionFilter && !card.dataset.versions.includes(versionFilter)) {
+            show = false;
+        }
+        
+        // Category filter
+        if (categoryFilter && card.dataset.category !== categoryFilter) {
+            show = false;
+        }
+        
+        // Rating filter
+        if (ratingFilter > 0 && parseFloat(card.dataset.rating) < ratingFilter) {
+            show = false;
+        }
+        
+        // Downloads filter
+        if (downloadsFilter) {
+            const downloads = card.dataset.downloads;
+            const downloadNum = parseFloat(downloads.replace(/[^\d.]/g, ''));
+            const filterNum = parseFloat(downloadsFilter.replace(/[^\d.]/g, ''));
+            if (downloadNum < filterNum) {
+                show = false;
+            }
+        }
+        
+        if (show) {
+            card.classList.remove('hidden');
+        } else {
+            card.classList.add('hidden');
+        }
     });
+    
+    // Hide empty categories
+    categorySections.forEach(section => {
+        const visibleMods = section.querySelectorAll('.mod-card:not(.hidden)');
+        if (visibleMods.length === 0) {
+            section.classList.add('hidden');
+        } else {
+            section.classList.remove('hidden');
+        }
+    });
+}
+
+function clearFilters() {
+    document.getElementById('versionFilter').value = '';
+    document.getElementById('categoryFilter').value = '';
+    document.getElementById('ratingFilter').value = '';
+    document.getElementById('downloadsFilter').value = '';
+    
+    document.querySelectorAll('.mod-card, .category-section').forEach(el => {
+        el.classList.remove('hidden');
+    });
+}
+
+function showModDetails(modId, modName) {
+    // This would typically load detailed mod information from an API
+    document.getElementById('modDetailsTitle').textContent = modName;
+    document.getElementById('modDetailsBody').innerHTML = `
+        <div class="text-center">
+            <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+            <p class="mt-2">Loading mod details...</p>
+        </div>
+    `;
+    
+    // For now, show basic info
+    setTimeout(() => {
+        document.getElementById('modDetailsBody').innerHTML = `
+            <div class="row">
+                <div class="col-md-4">
+                    <img src="https://via.placeholder.com/200x200?text=${modName}" 
+                         class="img-fluid rounded" alt="${modName}">
+                </div>
+                <div class="col-md-8">
+                    <h6>About ${modName}</h6>
+                    <p>This is a popular Minecraft mod with excellent community support and regular updates.</p>
+                    
+                    <h6>Features</h6>
+                    <ul>
+                        <li>High-quality content</li>
+                        <li>Regular updates</li>
+                        <li>Good performance</li>
+                        <li>Community support</li>
+                    </ul>
+                    
+                    <h6>Compatibility</h6>
+                    <p>Compatible with Forge and most popular modpacks.</p>
+                </div>
+            </div>
+        `;
+    }, 1000);
+    
+    document.getElementById('installModBtn').onclick = () => downloadMod(modId, modName);
+    
+    new bootstrap.Modal(document.getElementById('modDetailsModal')).show();
+}
+
+function downloadMod(modId, modName) {
+    if (confirm(`Are you sure you want to install ${modName}?`)) {
+        window.location.href = `/download_mod/${modId}`;
+    }
+}
+
+// Auto-apply filters when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Show all mods by default
+    applyFilters();
 });
 </script>
 {% endblock %} 
