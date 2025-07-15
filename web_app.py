@@ -1376,17 +1376,32 @@ def api_server_detailed_status():
         
         # Check if server is actually running
         java_processes = []
+        actual_running = False
         try:
             result = subprocess.run(['ps', 'aux'], capture_output=True, text=True)
             if result.returncode == 0:
                 for line in result.stdout.split('\n'):
-                    if 'java' in line and 'forge' in line.lower() and 'nogui' in line:
+                    # Look for Java processes that are actually running a Minecraft server
+                    if ('java' in line and 
+                        'forge' in line.lower() and 
+                        'nogui' in line and
+                        'minecraft' in line.lower()):
                         java_processes.append(line.strip())
+                        actual_running = True
+                    
+                    # Also check for standard Minecraft server processes
+                    elif ('java' in line and 
+                          'minecraft' in line.lower() and 
+                          'nogui' in line and
+                          'server.jar' in line):
+                        java_processes.append(line.strip())
+                        actual_running = True
         except:
             pass
         
-        # Determine actual server status
-        actual_running = len(java_processes) > 0
+        # If no processes found, definitely not running
+        if not java_processes:
+            actual_running = False
         
         return jsonify({
             'server_status': server_status,
