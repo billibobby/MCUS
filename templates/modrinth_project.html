@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} - Modrinth - MCUS{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Project Header -->
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="d-flex align-items-start">
+                    {% if project.icon_url %}
+                    <img src="{{ project.icon_url }}" alt="{{ project.name }}" 
+                         class="me-4" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">
+                    {% else %}
+                    <div class="me-4 d-flex align-items-center justify-content-center bg-light" 
+                         style="width: 80px; height: 80px; border-radius: 8px;">
+                        <i class="fas fa-puzzle-piece fa-2x text-muted"></i>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="flex-grow-1">
+                        <h2 class="mb-2">{{ project.name }}</h2>
+                        <p class="text-muted mb-3">by {{ project.author }}</p>
+                        
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            {% for category in project.categories %}
+                            <span class="badge bg-primary">{{ category }}</span>
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="border-end">
+                                    <h5 class="text-primary">{{ "{:,}".format(project.downloads) }}</h5>
+                                    <small class="text-muted">Downloads</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border-end">
+                                    <h5 class="text-success">{{ "{:,}".format(project.followers) }}</h5>
+                                    <small class="text-muted">Followers</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border-end">
+                                    <h5 class="text-info">{{ project.versions|length }}</h5>
+                                    <small class="text-muted">Versions</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <h5 class="text-warning">{{ project.project_type|title }}</h5>
+                                <small class="text-muted">Type</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Content -->
+    <div class="col-md-8">
+        <!-- Description -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Description
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if project.body %}
+                    <div class="markdown-content">
+                        {{ project.body|safe }}
+                    </div>
+                {% else %}
+                    <p class="text-muted">{{ project.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Gallery -->
+        {% if project.gallery %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-images me-2"></i>Gallery
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for image in project.gallery %}
+                    <div class="col-md-6 mb-3">
+                        <img src="{{ image.url }}" alt="{{ image.title or 'Gallery image' }}" 
+                             class="img-fluid rounded" style="max-height: 200px; object-fit: cover;">
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Versions -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-code-branch me-2"></i>Versions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Game Versions</th>
+                                <th>Loaders</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for version in project.versions %}
+                            <tr>
+                                <td>
+                                    <strong>{{ version.version_number }}</strong>
+                                    {% if version.name != version.version_number %}
+                                    <br><small class="text-muted">{{ version.name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% for game_version in version.game_versions %}
+                                    <span class="badge bg-outline-primary me-1">{{ game_version }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {% for loader in version.loaders %}
+                                    <span class="badge bg-outline-secondary me-1">{{ loader }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ version.date_published.split('T')[0] if version.date_published else 'Unknown' }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <a href="/download_modrinth_version/{{ project.id }}/{{ version.id }}" 
+                                       class="btn btn-success btn-sm">
+                                        <i class="fas fa-download me-1"></i>Download
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-md-4">
+        <!-- Quick Download -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-download me-2"></i>Quick Download
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if project.versions %}
+                    {% set latest_version = project.versions[0] %}
+                    <p class="text-muted mb-3">Latest version: <strong>{{ latest_version.version_number }}</strong></p>
+                    <a href="/download_modrinth_version/{{ project.id }}/{{ latest_version.id }}" 
+                       class="btn btn-success w-100 mb-2">
+                        <i class="fas fa-download me-2"></i>Download Latest
+                    </a>
+                {% else %}
+                    <p class="text-muted">No versions available</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Project Info -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-cog me-2"></i>Project Info
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Type:</strong> {{ project.project_type|title }}
+                </div>
+                <div class="mb-3">
+                    <strong>Client Side:</strong> 
+                    <span class="badge bg-{{ 'success' if project.client_side == 'required' else 'warning' if project.client_side == 'optional' else 'secondary' }}">
+                        {{ project.client_side|title }}
+                    </span>
+                </div>
+                <div class="mb-3">
+                    <strong>Server Side:</strong> 
+                    <span class="badge bg-{{ 'success' if project.server_side == 'required' else 'warning' if project.server_side == 'optional' else 'secondary' }}">
+                        {{ project.server_side|title }}
+                    </span>
+                </div>
+                {% if project.license %}
+                <div class="mb-3">
+                    <strong>License:</strong> {{ project.license.name or project.license.url or 'Unknown' }}
+                </div>
+                {% endif %}
+                <div class="mb-3">
+                    <strong>Created:</strong> {{ project.date_created.split('T')[0] if project.date_created else 'Unknown' }}
+                </div>
+                <div class="mb-3">
+                    <strong>Updated:</strong> {{ project.date_modified.split('T')[0] if project.date_modified else 'Unknown' }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Links -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-link me-2"></i>Links
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if project.source_url %}
+                <a href="{{ project.source_url }}" target="_blank" class="btn btn-outline-primary w-100 mb-2">
+                    <i class="fab fa-github me-2"></i>Source Code
+                </a>
+                {% endif %}
+                
+                {% if project.issues_url %}
+                <a href="{{ project.issues_url }}" target="_blank" class="btn btn-outline-warning w-100 mb-2">
+                    <i class="fas fa-bug me-2"></i>Report Issues
+                </a>
+                {% endif %}
+                
+                {% if project.wiki_url %}
+                <a href="{{ project.wiki_url }}" target="_blank" class="btn btn-outline-info w-100 mb-2">
+                    <i class="fas fa-book me-2"></i>Wiki
+                </a>
+                {% endif %}
+                
+                {% if project.discord_url %}
+                <a href="{{ project.discord_url }}" target="_blank" class="btn btn-outline-primary w-100 mb-2">
+                    <i class="fab fa-discord me-2"></i>Discord
+                </a>
+                {% endif %}
+                
+                {% for donation in project.donation_urls %}
+                <a href="{{ donation.url }}" target="_blank" class="btn btn-outline-success w-100 mb-2">
+                    <i class="fas fa-heart me-2"></i>{{ donation.platform|title }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-arrow-left me-2"></i>Navigation
+                </h6>
+            </div>
+            <div class="card-body">
+                <a href="/browse_modrinth" class="btn btn-secondary w-100 mb-2">
+                    <i class="fas fa-th-large me-2"></i>Browse All Mods
+                </a>
+                <a href="/popular_mods" class="btn btn-success w-100 mb-2">
+                    <i class="fas fa-star me-2"></i>Popular Mods
+                </a>
+                <a href="/mods" class="btn btn-primary w-100">
+                    <i class="fas fa-puzzle-piece me-2"></i>My Mods
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.border-end {
+    border-right: 1px solid #dee2e6;
+}
+
+.badge.bg-outline-primary {
+    background-color: transparent;
+    border: 1px solid #0d6efd;
+    color: #0d6efd;
+}
+
+.badge.bg-outline-secondary {
+    background-color: transparent;
+    border: 1px solid #6c757d;
+    color: #6c757d;
+}
+
+.markdown-content {
+    line-height: 1.6;
+}
+
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 10px 0;
+}
+
+.markdown-content h1, .markdown-content h2, .markdown-content h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.markdown-content p {
+    margin-bottom: 15px;
+}
+
+.markdown-content ul, .markdown-content ol {
+    margin-bottom: 15px;
+    padding-left: 20px;
+}
+</style>
+{% endblock %} 

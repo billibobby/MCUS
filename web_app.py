@@ -1214,6 +1214,75 @@ def fix_permissions():
     
     return redirect(url_for('diagnostics'))
 
+@app.route('/browse_modrinth')
+def browse_modrinth():
+    """Browse all mods from Modrinth with filtering and pagination"""
+    global mod_manager
+    
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 50, type=int)
+    sort_by = request.args.get('sort_by', 'downloads')
+    categories = request.args.getlist('categories')
+    loader = request.args.get('loader')
+    game_version = request.args.get('game_version')
+    
+    # Get filter options
+    all_categories = mod_manager.get_modrinth_categories() if mod_manager else []
+    all_loaders = mod_manager.get_modrinth_loaders() if mod_manager else []
+    all_game_versions = mod_manager.get_modrinth_game_versions() if mod_manager else []
+    
+    # Get mods with filters
+    result = mod_manager.get_all_modrinth_mods(
+        page=page, 
+        limit=limit, 
+        sort_by=sort_by,
+        categories=categories if categories else None,
+        loader=loader,
+        game_version=game_version
+    ) if mod_manager else {'mods': [], 'total_hits': 0, 'page': page, 'total_pages': 0}
+    
+    return render_template('browse_modrinth.html', 
+                         mods=result['mods'],
+                         total_hits=result['total_hits'],
+                         page=result['page'],
+                         total_pages=result['total_pages'],
+                         categories=all_categories,
+                         loaders=all_loaders,
+                         game_versions=all_game_versions,
+                         current_filters={
+                             'sort_by': sort_by,
+                             'categories': categories,
+                             'loader': loader,
+                             'game_version': game_version
+                         })
+
+@app.route('/modrinth_project/<project_id>')
+def modrinth_project_details(project_id):
+    """Show detailed information about a specific Modrinth project"""
+    global mod_manager
+    
+    project = mod_manager.get_modrinth_project_details(project_id) if mod_manager else None
+    if not project:
+        flash('Project not found', 'error')
+        return redirect(url_for('browse_modrinth'))
+    
+    return render_template('modrinth_project.html', project=project)
+
+@app.route('/download_modrinth_version/<project_id>/<version_id>')
+def download_modrinth_version(project_id, version_id):
+    """Download a specific version of a mod from Modrinth"""
+    global mod_manager
+    
+    try:
+        if mod_manager and mod_manager.download_mod_from_modrinth(project_id, version_id):
+            flash('Mod downloaded successfully!', 'success')
+        else:
+            flash('Failed to download mod', 'error')
+    except Exception as e:
+        flash(f'Error downloading mod: {str(e)}', 'error')
+    
+    return redirect(request.referrer or url_for('browse_modrinth'))
+
 if __name__ == '__main__':
     # Initialize managers
     initialize_managers()

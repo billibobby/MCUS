@@ -346,3 +346,173 @@ class ModManager:
         # This would compare installed versions with latest versions on Modrinth
         # For now, return empty list
         return [] 
+
+    def get_all_modrinth_mods(self, page: int = 1, limit: int = 50, sort_by: str = 'downloads', 
+                             categories: Optional[List[str]] = None, loader: Optional[str] = None, 
+                             game_version: Optional[str] = None) -> Dict:
+        """Get all mods from Modrinth with pagination and filtering"""
+        try:
+            search_url = "https://api.modrinth.com/v2/search"
+            
+            # Build facets for filtering
+            facets = []
+            if game_version:
+                facets.append([f"versions:{game_version}"])
+            if loader:
+                facets.append([f"loader:{loader}"])
+            if categories:
+                for category in categories:
+                    facets.append([f"categories:{category}"])
+            
+            params = {
+                'query': '',
+                'limit': limit,
+                'offset': (page - 1) * limit,
+                'sort_by': sort_by
+            }
+            
+            if facets:
+                params['facets'] = json.dumps(facets)
+            
+            response = requests.get(search_url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            mods = []
+            
+            for hit in data.get('hits', []):
+                mod_info = {
+                    'id': hit['project_id'],
+                    'name': hit['title'],
+                    'description': hit.get('description', ''),
+                    'downloads': hit.get('downloads', 0),
+                    'followers': hit.get('followers', 0),
+                    'author': hit.get('author', 'Unknown'),
+                    'categories': hit.get('categories', []),
+                    'icon_url': hit.get('icon_url'),
+                    'date_created': hit.get('date_created'),
+                    'date_modified': hit.get('date_modified'),
+                    'project_type': hit.get('project_type', 'mod'),
+                    'client_side': hit.get('client_side', 'unknown'),
+                    'server_side': hit.get('server_side', 'unknown'),
+                    'gallery': hit.get('gallery', []),
+                    'license': hit.get('license', {}),
+                    'team': hit.get('team', ''),
+                    'body': hit.get('body', ''),
+                    'issues_url': hit.get('issues_url'),
+                    'source_url': hit.get('source_url'),
+                    'wiki_url': hit.get('wiki_url'),
+                    'discord_url': hit.get('discord_url'),
+                    'donation_urls': hit.get('donation_urls', [])
+                }
+                mods.append(mod_info)
+                
+            return {
+                'mods': mods,
+                'total_hits': data.get('total_hits', 0),
+                'page': page,
+                'limit': limit,
+                'total_pages': (data.get('total_hits', 0) + limit - 1) // limit
+            }
+            
+        except Exception as e:
+            logging.error(f"Failed to get all Modrinth mods: {e}")
+            return {'mods': [], 'total_hits': 0, 'page': page, 'limit': limit, 'total_pages': 0}
+    
+    def get_modrinth_categories(self) -> List[Dict]:
+        """Get all available categories from Modrinth"""
+        try:
+            categories_url = "https://api.modrinth.com/v2/tag/category"
+            response = requests.get(categories_url)
+            response.raise_for_status()
+            
+            categories = response.json()
+            return [
+                {
+                    'name': cat['name'],
+                    'display_name': cat.get('display_name', cat['name']),
+                    'description': cat.get('description', ''),
+                    'icon': cat.get('icon', ''),
+                    'color': cat.get('color', '#000000')
+                }
+                for cat in categories
+            ]
+            
+        except Exception as e:
+            logging.error(f"Failed to get Modrinth categories: {e}")
+            return []
+    
+    def get_modrinth_loaders(self) -> List[str]:
+        """Get all available loaders from Modrinth"""
+        try:
+            loaders_url = "https://api.modrinth.com/v2/tag/loader"
+            response = requests.get(loaders_url)
+            response.raise_for_status()
+            
+            loaders = response.json()
+            return [loader['name'] for loader in loaders]
+            
+        except Exception as e:
+            logging.error(f"Failed to get Modrinth loaders: {e}")
+            return ['forge', 'fabric', 'quilt']
+    
+    def get_modrinth_game_versions(self) -> List[str]:
+        """Get all available game versions from Modrinth"""
+        try:
+            versions_url = "https://api.modrinth.com/v2/tag/game_version"
+            response = requests.get(versions_url)
+            response.raise_for_status()
+            
+            versions = response.json()
+            # Sort versions in descending order (newest first)
+            sorted_versions = sorted(versions, key=lambda x: x['name'], reverse=True)
+            return [version['name'] for version in sorted_versions]
+            
+        except Exception as e:
+            logging.error(f"Failed to get Modrinth game versions: {e}")
+            return ['1.20.2', '1.20.1', '1.19.4', '1.19.3', '1.19.2', '1.18.2']
+    
+    def get_modrinth_project_details(self, project_id: str) -> Optional[Dict]:
+        """Get detailed information about a specific Modrinth project"""
+        try:
+            project_url = f"https://api.modrinth.com/v2/project/{project_id}"
+            response = requests.get(project_url)
+            response.raise_for_status()
+            
+            project_data = response.json()
+            
+            # Get versions for this project
+            versions_url = f"https://api.modrinth.com/v2/project/{project_id}/version"
+            versions_response = requests.get(versions_url)
+            versions_response.raise_for_status()
+            versions_data = versions_response.json()
+            
+            return {
+                'id': project_data['id'],
+                'name': project_data['title'],
+                'description': project_data.get('description', ''),
+                'body': project_data.get('body', ''),
+                'downloads': project_data.get('downloads', 0),
+                'followers': project_data.get('followers', 0),
+                'author': project_data.get('author', 'Unknown'),
+                'categories': project_data.get('categories', []),
+                'icon_url': project_data.get('icon_url'),
+                'date_created': project_data.get('date_created'),
+                'date_modified': project_data.get('date_modified'),
+                'project_type': project_data.get('project_type', 'mod'),
+                'client_side': project_data.get('client_side', 'unknown'),
+                'server_side': project_data.get('server_side', 'unknown'),
+                'gallery': project_data.get('gallery', []),
+                'license': project_data.get('license', {}),
+                'team': project_data.get('team', ''),
+                'issues_url': project_data.get('issues_url'),
+                'source_url': project_data.get('source_url'),
+                'wiki_url': project_data.get('wiki_url'),
+                'discord_url': project_data.get('discord_url'),
+                'donation_urls': project_data.get('donation_urls', []),
+                'versions': versions_data
+            }
+            
+        except Exception as e:
+            logging.error(f"Failed to get Modrinth project details for {project_id}: {e}")
+            return None 

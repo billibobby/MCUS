@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}Browse All Modrinth Mods - MCUS{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Filters Sidebar -->
+    <div class="col-md-3">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Filters
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="get" action="/browse_modrinth">
+                    <!-- Sort Options -->
+                    <div class="mb-3">
+                        <label class="form-label">Sort By</label>
+                        <select name="sort_by" class="form-select">
+                            <option value="downloads" {% if current_filters.sort_by == 'downloads' %}selected{% endif %}>Most Downloaded</option>
+                            <option value="followers" {% if current_filters.sort_by == 'followers' %}selected{% endif %}>Most Followed</option>
+                            <option value="updated" {% if current_filters.sort_by == 'updated' %}selected{% endif %}>Recently Updated</option>
+                            <option value="created" {% if current_filters.sort_by == 'created' %}selected{% endif %}>Recently Created</option>
+                            <option value="relevance" {% if current_filters.sort_by == 'relevance' %}selected{% endif %}>Relevance</option>
+                        </select>
+                    </div>
+
+                    <!-- Game Version -->
+                    <div class="mb-3">
+                        <label class="form-label">Minecraft Version</label>
+                        <select name="game_version" class="form-select">
+                            <option value="">All Versions</option>
+                            {% for version in game_versions %}
+                            <option value="{{ version }}" {% if current_filters.game_version == version %}selected{% endif %}>{{ version }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Loader -->
+                    <div class="mb-3">
+                        <label class="form-label">Mod Loader</label>
+                        <select name="loader" class="form-select">
+                            <option value="">All Loaders</option>
+                            {% for loader in loaders %}
+                            <option value="{{ loader }}" {% if current_filters.loader == loader %}selected{% endif %}>{{ loader|title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Categories -->
+                    <div class="mb-3">
+                        <label class="form-label">Categories</label>
+                        <div class="max-height-300 overflow-auto">
+                            {% for category in categories %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="categories" 
+                                       value="{{ category.name }}" id="cat_{{ category.name }}"
+                                       {% if category.name in current_filters.categories %}checked{% endif %}>
+                                <label class="form-check-label" for="cat_{{ category.name }}">
+                                    {{ category.display_name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Results per page -->
+                    <div class="mb-3">
+                        <label class="form-label">Results per page</label>
+                        <select name="limit" class="form-select">
+                            <option value="25" {% if request.args.get('limit', '50') == '25' %}selected{% endif %}>25</option>
+                            <option value="50" {% if request.args.get('limit', '50') == '50' %}selected{% endif %}>50</option>
+                            <option value="100" {% if request.args.get('limit', '50') == '100' %}selected{% endif %}>100</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-2"></i>Apply Filters
+                    </button>
+                </form>
+
+                <hr>
+
+                <!-- Quick Stats -->
+                <div class="text-center">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Showing {{ mods|length }} of {{ "{:,}".format(total_hits) }} mods
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <a href="/popular_mods" class="btn btn-success w-100 mb-2">
+                    <i class="fas fa-star me-2"></i>Popular Mods
+                </a>
+                <a href="/search_modrinth" class="btn btn-info w-100 mb-2">
+                    <i class="fas fa-search me-2"></i>Search Mods
+                </a>
+                <a href="/mods" class="btn btn-secondary w-100">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Mods
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mods Grid -->
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-th-large me-2"></i>All Modrinth Mods
+                </h5>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-primary me-2">{{ "{:,}".format(total_hits) }} total mods</span>
+                    <span class="badge bg-secondary">Page {{ page }} of {{ total_pages }}</span>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if mods %}
+                    <div class="row">
+                        {% for mod in mods %}
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card h-100 mod-card">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-start mb-3">
+                                        {% if mod.icon_url %}
+                                        <img src="{{ mod.icon_url }}" alt="{{ mod.name }}" 
+                                             class="mod-icon me-3" style="width: 48px; height: 48px; object-fit: cover;">
+                                        {% else %}
+                                        <div class="mod-icon-placeholder me-3 d-flex align-items-center justify-content-center bg-light">
+                                            <i class="fas fa-puzzle-piece text-muted"></i>
+                                        </div>
+                                        {% endif %}
+                                        <div class="flex-grow-1">
+                                            <h6 class="card-title mb-1">{{ mod.name }}</h6>
+                                            <small class="text-muted">by {{ mod.author }}</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <p class="card-text text-muted small">
+                                        {{ mod.description[:120] }}{% if mod.description|length > 120 %}...{% endif %}
+                                    </p>
+                                    
+                                    <div class="mb-3">
+                                        {% for category in mod.categories[:3] %}
+                                        <span class="badge bg-outline-secondary me-1">{{ category }}</span>
+                                        {% endfor %}
+                                        {% if mod.categories|length > 3 %}
+                                        <span class="badge bg-outline-secondary">+{{ mod.categories|length - 3 }}</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-download me-1"></i>{{ "{:,}".format(mod.downloads) }}
+                                        </small>
+                                        <small class="text-muted">
+                                            <i class="fas fa-heart me-1"></i>{{ "{:,}".format(mod.followers) }}
+                                        </small>
+                                    </div>
+                                    
+                                    <div class="d-flex gap-2">
+                                        <a href="/modrinth_project/{{ mod.id }}" class="btn btn-outline-primary btn-sm flex-fill">
+                                            <i class="fas fa-info-circle me-1"></i>Details
+                                        </a>
+                                        <a href="/download_mod/{{ mod.id }}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if total_pages > 1 %}
+                    <nav aria-label="Modrinth mods pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if page > 1 %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('browse_modrinth', page=page-1, **request.args) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                            
+                            {% for p in range(max(1, page-2), min(total_pages+1, page+3)) %}
+                            <li class="page-item {% if p == page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('browse_modrinth', page=p, **request.args) }}">{{ p }}</a>
+                            </li>
+                            {% endfor %}
+                            
+                            {% if page < total_pages %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('browse_modrinth', page=page+1, **request.args) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No mods found</h5>
+                        <p class="text-muted">Try adjusting your filters or search terms.</p>
+                        <a href="/browse_modrinth" class="btn btn-primary">
+                            <i class="fas fa-refresh me-2"></i>Clear Filters
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.mod-icon {
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.mod-icon-placeholder {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.mod-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.mod-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.max-height-300 {
+    max-height: 300px;
+}
+
+.overflow-auto {
+    overflow-y: auto;
+}
+
+.badge.bg-outline-secondary {
+    background-color: transparent;
+    border: 1px solid #6c757d;
+    color: #6c757d;
+}
+</style>
+{% endblock %} 
