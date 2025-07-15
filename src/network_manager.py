@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass
 from datetime import datetime
 import struct
+import requests
 
 @dataclass
 class HostInfo:
@@ -20,14 +21,17 @@ class HostInfo:
     cpu_usage: float
 
 class NetworkManager:
-    def __init__(self, port: int = 25566):
+    def __init__(self, port: int = 25566, mode: str = "peer"):
         self.port = port
+        self.mode = mode  # "peer" or "central"
         self.hosts: Dict[str, HostInfo] = {}
         self.is_running = False
         self.server_socket = None
         self.message_handlers: Dict[str, Callable] = {}
         self.heartbeat_interval = 30  # seconds
         self.host_timeout = 90  # seconds
+        self.peer_connections: Dict[str, socket.socket] = {}
+        self.peer_ips: List[str] = []
         
         # Register message handlers
         self.register_handlers()
@@ -41,7 +45,9 @@ class NetworkManager:
             'player_join': self.handle_player_join,
             'player_leave': self.handle_player_leave,
             'server_command': self.handle_server_command,
-            'failover_request': self.handle_failover_request
+            'failover_request': self.handle_failover_request,
+            'peer_discovery': self.handle_peer_discovery,
+            'peer_sync': self.handle_peer_sync
         }
         
     def start(self):
@@ -63,7 +69,12 @@ class NetworkManager:
             # Start heartbeat monitoring thread
             threading.Thread(target=self.monitor_heartbeats, daemon=True).start()
             
-            logging.info(f"Network manager started on port {self.port}")
+            # Start peer discovery thread (for peer mode)
+            if self.mode == "peer":
+                threading.Thread(target=self.discover_peers, daemon=True).start()
+                threading.Thread(target=self.broadcast_to_peers, daemon=True).start()
+            
+            logging.info(f"Network manager started on port {self.port} in {self.mode} mode")
             return True
             
         except Exception as e:
@@ -259,6 +270,41 @@ class NetworkManager:
                 'message': 'No available hosts for failover'
             }
             
+    def handle_peer_discovery(self, message: Dict) -> Optional[Dict]:
+        """Handle peer discovery message"""
+        peer_hosts = message.get('hosts', [])
+        for host_data in peer_hosts:
+            host_name = host_data['name']
+            if host_name not in self.hosts:
+                # Add new host from peer
+                self.hosts[host_name] = HostInfo(
+                    name=host_data['name'],
+                    ip=host_data['ip'],
+                    port=host_data['port'],
+                    status=host_data['status'],
+                    last_seen=datetime.fromisoformat(host_data['last_seen']),
+                    players=host_data['players'],
+                    memory_usage=host_data['memory_usage'],
+                    cpu_usage=host_data['cpu_usage']
+                )
+                logging.info(f"Added host from peer: {host_name}")
+                
+        return {'type': 'peer_discovery_response', 'success': True}
+        
+    def handle_peer_sync(self, message: Dict) -> Optional[Dict]:
+        """Handle peer sync message"""
+        host_data = message.get('host_info', {})
+        host_name = host_data.get('name')
+        if host_name and host_name in self.hosts:
+            host = self.hosts[host_name]
+            host.status = host_data.get('status', host.status)
+            host.players = host_data.get('players', host.players)
+            host.memory_usage = host_data.get('memory_usage', host.memory_usage)
+            host.cpu_usage = host_data.get('cpu_usage', host.cpu_usage)
+            host.last_seen = datetime.fromisoformat(host_data.get('last_seen', host.last_seen.isoformat()))
+            
+        return {'type': 'peer_sync_response', 'success': True}
+        
     def monitor_heartbeats(self):
         """Monitor host heartbeats and mark offline hosts"""
         while self.is_running:
@@ -310,6 +356,158 @@ class NetworkManager:
             logging.info(f"Host removed: {host_name}")
             return True
         return False
+        
+    def add_peer_ip(self, ip: str):
+        """Add a peer IP address to connect to"""
+        if ip not in self.peer_ips:
+            self.peer_ips.append(ip)
+            logging.info(f"Added peer IP: {ip}")
+            
+    def remove_peer_ip(self, ip: str):
+        """Remove a peer IP address"""
+        if ip in self.peer_ips:
+            self.peer_ips.remove(ip)
+            logging.info(f"Removed peer IP: {ip}")
+            
+    def discover_peers(self):
+        """Discover other peers on the network"""
+        while self.is_running:
+            for peer_ip in self.peer_ips:
+                try:
+                    # Try to connect to peer
+                    peer_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    peer_socket.settimeout(5)
+                    peer_socket.connect((peer_ip, self.port))
+                    
+                    # Send discovery message
+                    discovery_msg = {
+                        'type': 'peer_discovery',
+                        'hosts': self.get_hosts_status()
+                    }
+                    self.send_message_to_socket(peer_socket, discovery_msg)
+                    
+                    # Store connection
+                    self.peer_connections[peer_ip] = peer_socket
+                    
+                    # Start listening for messages from this peer
+                    threading.Thread(
+                        target=self.listen_to_peer,
+                        args=(peer_socket, peer_ip),
+                        daemon=True
+                    ).start()
+                    
+                except Exception as e:
+                    # Peer not available, remove from connections
+                    if peer_ip in self.peer_connections:
+                        del self.peer_connections[peer_ip]
+                        
+            time.sleep(60)  # Check every minute
+            
+    def listen_to_peer(self, peer_socket: socket.socket, peer_ip: str):
+        """Listen for messages from a specific peer"""
+        try:
+            while self.is_running:
+                # Receive message length
+                length_data = peer_socket.recv(4)
+                if not length_data:
+                    break
+                    
+                message_length = struct.unpack('!I', length_data)[0]
+                
+                # Receive message data
+                message_data = b''
+                while len(message_data) < message_length:
+                    chunk = peer_socket.recv(message_length - len(message_data))
+                    if not chunk:
+                        break
+                    message_data += chunk
+                    
+                if len(message_data) < message_length:
+                    break
+                    
+                # Parse and handle message
+                message = json.loads(message_data.decode('utf-8'))
+                self.handle_peer_message(message, peer_ip)
+                
+        except Exception as e:
+            logging.error(f"Error listening to peer {peer_ip}: {e}")
+        finally:
+            if peer_ip in self.peer_connections:
+                del self.peer_connections[peer_ip]
+            peer_socket.close()
+            
+    def handle_peer_message(self, message: Dict, peer_ip: str):
+        """Handle message from peer"""
+        try:
+            message_type = message.get('type')
+            if message_type == 'peer_discovery':
+                # Sync hosts from peer
+                peer_hosts = message.get('hosts', [])
+                for host_data in peer_hosts:
+                    host_name = host_data['name']
+                    if host_name not in self.hosts:
+                        # Add new host from peer
+                        self.hosts[host_name] = HostInfo(
+                            name=host_data['name'],
+                            ip=host_data['ip'],
+                            port=host_data['port'],
+                            status=host_data['status'],
+                            last_seen=datetime.fromisoformat(host_data['last_seen']),
+                            players=host_data['players'],
+                            memory_usage=host_data['memory_usage'],
+                            cpu_usage=host_data['cpu_usage']
+                        )
+                        logging.info(f"Added host from peer {peer_ip}: {host_name}")
+                        
+            elif message_type == 'peer_sync':
+                # Handle host updates from peer
+                host_data = message.get('host_info', {})
+                host_name = host_data.get('name')
+                if host_name and host_name in self.hosts:
+                    host = self.hosts[host_name]
+                    host.status = host_data.get('status', host.status)
+                    host.players = host_data.get('players', host.players)
+                    host.memory_usage = host_data.get('memory_usage', host.memory_usage)
+                    host.cpu_usage = host_data.get('cpu_usage', host.cpu_usage)
+                    host.last_seen = datetime.fromisoformat(host_data.get('last_seen', host.last_seen.isoformat()))
+                    
+        except Exception as e:
+            logging.error(f"Error handling peer message: {e}")
+            
+    def broadcast_to_peers(self):
+        """Broadcast host updates to all peers"""
+        while self.is_running:
+            try:
+                # Get current host status
+                current_hosts = self.get_hosts_status()
+                
+                # Broadcast to all connected peers
+                for peer_ip, peer_socket in list(self.peer_connections.items()):
+                    try:
+                        sync_msg = {
+                            'type': 'peer_sync',
+                            'hosts': current_hosts
+                        }
+                        self.send_message_to_socket(peer_socket, sync_msg)
+                    except Exception as e:
+                        logging.error(f"Failed to broadcast to peer {peer_ip}: {e}")
+                        # Remove failed connection
+                        del self.peer_connections[peer_ip]
+                        
+            except Exception as e:
+                logging.error(f"Error in broadcast: {e}")
+                
+            time.sleep(30)  # Broadcast every 30 seconds
+            
+    def send_message_to_socket(self, sock: socket.socket, message: Dict):
+        """Send message to a specific socket"""
+        try:
+            message_data = json.dumps(message).encode('utf-8')
+            message_length = struct.pack('!I', len(message_data))
+            sock.send(message_length + message_data)
+        except Exception as e:
+            logging.error(f"Error sending message to socket: {e}")
+            raise
 
 class HostClient:
     """Client for connecting to the network manager"""

@@ -91,15 +91,17 @@ def hosting():
     global network_manager, host_client
     
     hosts = []
+    peer_ips = []
     if network_manager:
         hosts = network_manager.get_hosts_status()
+        peer_ips = network_manager.peer_ips
     
     # Get current computer info
     current_host = None
     if host_client and host_client.host_info:
         current_host = host_client.host_info.get('name')
     
-    return render_template('hosting.html', hosts=hosts, current_host=current_host)
+    return render_template('hosting.html', hosts=hosts, current_host=current_host, peer_ips=peer_ips)
 
 @app.route('/join_network', methods=['POST'])
 def join_network():
@@ -183,6 +185,38 @@ def remove_host(host_name):
         flash(f'Removed host: {host_name}', 'success')
     else:
         flash(f'Failed to remove host: {host_name}', 'error')
+    
+    return redirect(url_for('hosting'))
+
+@app.route('/add_peer', methods=['POST'])
+def add_peer():
+    global network_manager
+    
+    if not network_manager:
+        flash('Network manager not initialized', 'error')
+        return redirect(url_for('hosting'))
+    
+    peer_ip = request.form.get('peer_ip')
+    if not peer_ip:
+        flash('Please enter a peer IP address', 'error')
+        return redirect(url_for('hosting'))
+    
+    # Add peer IP to network manager
+    network_manager.add_peer_ip(peer_ip)
+    flash(f'Added peer IP: {peer_ip}. Your friend should add your IP address too.', 'success')
+    
+    return redirect(url_for('hosting'))
+
+@app.route('/remove_peer/<peer_ip>')
+def remove_peer(peer_ip):
+    global network_manager
+    
+    if not network_manager:
+        flash('Network manager not initialized', 'error')
+        return redirect(url_for('hosting'))
+    
+    network_manager.remove_peer_ip(peer_ip)
+    flash(f'Removed peer IP: {peer_ip}', 'success')
     
     return redirect(url_for('hosting'))
 

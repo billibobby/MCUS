@@ -32,7 +32,7 @@
             </div>
         </div>
         
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header">
                 <h5 class="mb-0">
                     <i class="fas fa-plus me-2"></i>Add Host Computer
@@ -52,6 +52,33 @@
                     </div>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-plus me-2"></i>Add Host
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-users me-2"></i>Add Friend's Computer (Peer-to-Peer)
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    Add your friend's IP address to see their computer in your network. 
+                    They need to add your IP address too for mutual visibility.
+                </p>
+                <form action="/add_peer" method="post">
+                    <div class="mb-3">
+                        <label for="peer_ip" class="form-label">Friend's IP Address</label>
+                        <input type="text" class="form-control" id="peer_ip" name="peer_ip" 
+                               placeholder="Enter friend's IP address" required>
+                        <div class="form-text">
+                            Your friend needs to add your IP: <code id="my-ip">Loading...</code>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-user-plus me-2"></i>Add Friend
                     </button>
                 </form>
             </div>
@@ -101,8 +128,36 @@
                 {% else %}
                     <p class="text-muted">No hosts connected</p>
                 {% endif %}
+                
+                {% if peer_ips %}
+                    <hr>
+                    <h6>Connected Peers:</h6>
+                    <ul class="list-group list-group-flush">
+                        {% for peer_ip in peer_ips %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ peer_ip }}
+                            <a href="/remove_peer/{{ peer_ip }}" class="btn btn-danger btn-sm" 
+                               onclick="return confirm('Remove this peer?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
+
+<script>
+// Get and display the user's IP address
+fetch('https://api.ipify.org?format=json')
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('my-ip').textContent = data.ip;
+    })
+    .catch(error => {
+        document.getElementById('my-ip').textContent = 'Could not load IP';
+    });
+</script>
 {% endblock %} 
