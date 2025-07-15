@@ -478,16 +478,80 @@ def install_forge():
                 flash('Forge is already installed!', 'info')
                 return redirect(url_for('mods'))
             
-            flash('Installing Forge... This may take a few minutes. Please wait.', 'info')
+            # Redirect to version selection page
+            return redirect(url_for('select_forge_version'))
             
-            if server_manager.install_forge():
-                flash('Forge installed successfully! You can now start your server.', 'success')
-            else:
-                flash('Failed to install Forge automatically. Please try again or download manually from https://files.minecraftforge.net/', 'error')
         except Exception as e:
-            flash(f'Error installing Forge: {str(e)}', 'error')
+            flash(f'Error checking Forge installation: {str(e)}', 'error')
     else:
         flash('Server manager not initialized', 'error')
+    
+    return redirect(url_for('mods'))
+
+@app.route('/select_forge_version')
+def select_forge_version():
+    """Show Forge version selection page"""
+    # Available Minecraft versions and their recommended Forge builds
+    forge_versions = {
+        '1.20.1': {
+            'name': 'Minecraft 1.20.1',
+            'recommended': '47.1.0',
+            'latest': '47.2.0',
+            'builds': ['47.2.0', '47.1.0', '47.0.0', '46.0.0']
+        },
+        '1.19.2': {
+            'name': 'Minecraft 1.19.2',
+            'recommended': '43.2.0',
+            'latest': '43.3.0',
+            'builds': ['43.3.0', '43.2.0', '43.1.0', '43.0.0']
+        },
+        '1.18.2': {
+            'name': 'Minecraft 1.18.2',
+            'recommended': '40.2.0',
+            'latest': '40.2.0',
+            'builds': ['40.2.0', '40.1.0', '40.0.0', '39.0.0']
+        },
+        '1.16.5': {
+            'name': 'Minecraft 1.16.5',
+            'recommended': '36.2.0',
+            'latest': '36.2.0',
+            'builds': ['36.2.0', '36.1.0', '36.0.0', '35.0.0']
+        }
+    }
+    
+    return render_template('select_forge_version.html', forge_versions=forge_versions)
+
+@app.route('/install_forge_version', methods=['POST'])
+def install_forge_version():
+    """Install specific Forge version"""
+    global server_manager
+    
+    if not server_manager:
+        flash('Server manager not initialized', 'error')
+        return redirect(url_for('mods'))
+    
+    minecraft_version = request.form.get('minecraft_version')
+    forge_build = request.form.get('forge_build')
+    
+    if not minecraft_version or not forge_build:
+        flash('Please select both Minecraft version and Forge build', 'error')
+        return redirect(url_for('select_forge_version'))
+    
+    try:
+        # Check if Forge is already installed
+        server_jar = server_manager.find_server_jar()
+        if server_jar:
+            flash('Forge is already installed!', 'info')
+            return redirect(url_for('mods'))
+        
+        flash(f'Installing Forge {minecraft_version}-{forge_build}... This may take a few minutes. Please wait.', 'info')
+        
+        if server_manager.install_forge_specific(minecraft_version, forge_build):
+            flash(f'Forge {minecraft_version}-{forge_build} installed successfully! You can now start your server.', 'success')
+        else:
+            flash(f'Failed to install Forge {minecraft_version}-{forge_build}. Please try a different version or download manually from https://files.minecraftforge.net/', 'error')
+    except Exception as e:
+        flash(f'Error installing Forge: {str(e)}', 'error')
     
     return redirect(url_for('mods'))
 

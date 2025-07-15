@@ -252,6 +252,51 @@ class ServerManager:
         except Exception as e:
             logging.error(f"Failed to install Forge: {e}")
             return False
+
+    def install_forge_specific(self, minecraft_version, forge_build):
+        """Install a specific Forge version"""
+        try:
+            forge_version = f"{minecraft_version}-{forge_build}"
+            
+            # Download Forge installer
+            forge_url = f"https://maven.minecraftforge.net/net/minecraftforge/forge/{forge_version}/forge-{forge_version}-installer.jar"
+            
+            installer_path = self.server_dir / "forge-installer.jar"
+            
+            logging.info(f"Installing specific Forge version: {forge_version}")
+            response = requests.get(forge_url, stream=True, timeout=30)
+            response.raise_for_status()
+            
+            with open(installer_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+                    
+            # Run installer
+            logging.info(f"Installing Forge {forge_version}...")
+            result = subprocess.run([
+                "java", "-jar", str(installer_path),
+                "--installServer"
+            ], cwd=str(self.server_dir), capture_output=True, text=True, timeout=300)
+            
+            # Clean up installer
+            installer_path.unlink()
+            
+            if result.returncode == 0:
+                logging.info(f"Forge {forge_version} installed successfully")
+                return True
+            else:
+                logging.error(f"Forge {forge_version} installation failed: {result.stderr}")
+                return False
+                
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to download Forge {forge_version}: {e}")
+            return False
+        except subprocess.TimeoutExpired:
+            logging.error(f"Forge {forge_version} installation timed out")
+            return False
+        except Exception as e:
+            logging.error(f"Failed to install Forge {forge_version}: {e}")
+            return False
             
     def install_mod(self, mod_path):
         """Install a mod from file"""
