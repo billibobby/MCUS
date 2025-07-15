@@ -38,11 +38,11 @@
                         <div class="col-md-4 text-end">
                             <div class="stats">
                                 <div class="stat-item">
-                                    <span class="stat-number">{{ forge_versions|length }}</span>
+                                    <span class="stat-number">{{ available_versions|length }}</span>
                                     <span class="stat-label">Minecraft Versions</span>
                                 </div>
                                 <div class="stat-item">
-                                    <span class="stat-number">{{ forge_versions.values() | map(attribute='builds') | map('length') | sum }}</span>
+                                    <span class="stat-number">{{ available_versions.values() | map(attribute='builds') | map('length') | sum }}</span>
                                     <span class="stat-label">Forge Builds</span>
                                 </div>
                             </div>
@@ -105,7 +105,7 @@
     <!-- Version Selection Form -->
     <form action="{{ url_for('install_forge_version') }}" method="post" id="forgeForm">
         <div class="row">
-            {% for mc_version, version_info in forge_versions.items() %}
+            {% for mc_version, version_info in available_versions.items() %}
             <div class="col-lg-6 col-xl-4 mb-4">
                 <div class="card h-100 border-{% if mc_version == '1.19.2' %}success{% elif version_info.status == 'Latest Stable' %}primary{% elif version_info.status == 'Popular' %}info{% elif version_info.status == 'LTS' %}warning{% else %}secondary{% endif %}">
                     <div class="card-header bg-{% if mc_version == '1.19.2' %}success{% elif version_info.status == 'Latest Stable' %}primary{% elif version_info.status == 'Popular' %}info{% elif version_info.status == 'LTS' %}warning{% else %}secondary{% endif %} text-white">
@@ -337,7 +337,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for mc_version, version_info in forge_versions.items() %}
+                                    {% for mc_version, version_info in available_versions.items() %}
                                     <tr>
                                         <td>{{ mc_version }}</td>
                                         <td>{{ version_info.mod_count }}</td>

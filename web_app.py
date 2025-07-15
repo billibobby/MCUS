@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash, send_file
 import json
 import os
 import subprocess
@@ -13,10 +13,14 @@ import logging
 from src.server_manager import ServerManager
 from src.mod_manager import ModManager
 from src.network_manager import NetworkManager, HostClient, HostInfo
+from src.update_checker import UpdateChecker
 import sys
 
 app = Flask(__name__)
 app.secret_key = 'mcus_secret_key_2024'
+
+# Add built-in functions to template context
+app.jinja_env.globals.update(max=max, min=min, len=len, range=range)
 
 # Global variables
 server_manager = None
@@ -24,9 +28,10 @@ mod_manager = None
 network_manager = None
 host_client = None
 is_hosting = False
+update_checker = None
 
 def initialize_managers():
-    global server_manager, mod_manager, network_manager
+    global server_manager, mod_manager, network_manager, update_checker
     
     # Load configuration
     config = {
@@ -62,6 +67,9 @@ def initialize_managers():
     
     # Start network manager
     network_manager.start()
+    
+    # Initialize update checker
+    update_checker = UpdateChecker()
 
 @app.route('/')
 def dashboard():
@@ -226,10 +234,21 @@ def mods():
     global mod_manager
     
     installed_mods = []
+    popular_modrinth_mods = []
+    
     if mod_manager:
         installed_mods = mod_manager.get_installed_mods()
+        
+        # Get popular mods from Modrinth for the main page
+        try:
+            popular_modrinth_mods = mod_manager.get_popular_modrinth_mods(limit=12)  # Show top 12 popular mods
+        except Exception as e:
+            logging.error(f"Failed to load popular mods for main page: {e}")
+            # Continue without popular mods if there's an error
     
-    return render_template('mods.html', mods=installed_mods)
+    return render_template('mods.html', 
+                         mods=installed_mods, 
+                         popular_modrinth_mods=popular_modrinth_mods)
 
 @app.route('/search_modrinth')
 def search_modrinth():
@@ -245,348 +264,100 @@ def search_modrinth():
 
 @app.route('/popular_mods')
 def popular_mods():
-    """Show popular mods from Modrinth"""
-    # Comprehensive popular mods with detailed information
-    popular_mods_data = {
-        'tech': {
-            'name': 'Technology & Automation',
-            'icon': 'fas fa-cogs',
-            'color': 'primary',
-            'description': 'Automation, machines, and technological advancements',
-            'mods': [
-                {
-                    'id': 'create',
-                    'name': 'Create',
-                    'description': 'Adds mechanical power and automation to Minecraft',
-                    'downloads': '5.2M',
-                    'followers': '125K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2'],
-                    'categories': ['tech', 'automation'],
-                    'icon_url': 'https://cdn.modrinth.com/data/X1zDcYw9/icon.png',
-                    'author': 'simibubi',
-                    'rating': 4.9
-                },
-                {
-                    'id': 'mekanism',
-                    'name': 'Mekanism',
-                    'description': 'High-tech machinery, automation, and energy systems',
-                    'downloads': '8.1M',
-                    'followers': '200K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['tech', 'automation', 'energy'],
-                    'icon_url': 'https://cdn.modrinth.com/data/HnFTFcuf/icon.png',
-                    'author': 'aidancbrady',
-                    'rating': 4.8
-                },
-                {
-                    'id': 'thermal-expansion',
-                    'name': 'Thermal Expansion',
-                    'description': 'Technology mod with machines, automation, and energy',
-                    'downloads': '3.8M',
-                    'followers': '95K',
-                    'versions': ['1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['tech', 'automation'],
-                    'icon_url': 'https://cdn.modrinth.com/data/thermal-expansion/icon.png',
-                    'author': 'TeamCoFH',
-                    'rating': 4.7
-                },
-                {
-                    'id': 'industrial-foregoing',
-                    'name': 'Industrial Foregoing',
-                    'description': 'Industrial automation and resource processing',
-                    'downloads': '2.9M',
-                    'followers': '75K',
-                    'versions': ['1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['tech', 'automation'],
-                    'icon_url': 'https://cdn.modrinth.com/data/industrial-foregoing/icon.png',
-                    'author': 'Buuz135',
-                    'rating': 4.6
-                }
-            ]
-        },
-        'magic': {
-            'name': 'Magic & Fantasy',
-            'icon': 'fas fa-magic',
-            'color': 'purple',
-            'description': 'Magical spells, rituals, and mystical content',
-            'mods': [
-                {
-                    'id': 'botania',
-                    'name': 'Botania',
-                    'description': 'Nature magic mod with flowers, spells, and automation',
-                    'downloads': '4.5M',
-                    'followers': '110K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['magic', 'nature'],
-                    'icon_url': 'https://cdn.modrinth.com/data/botania/icon.png',
-                    'author': 'Vazkii',
-                    'rating': 4.9
-                },
-                {
-                    'id': 'thaumcraft',
-                    'name': 'Thaumcraft',
-                    'description': 'Magic research and arcane technology',
-                    'downloads': '6.2M',
-                    'followers': '150K',
-                    'versions': ['1.12.2'],
-                    'categories': ['magic', 'research'],
-                    'icon_url': 'https://cdn.modrinth.com/data/thaumcraft/icon.png',
-                    'author': 'Azanor',
-                    'rating': 4.8
-                },
-                {
-                    'id': 'astral-sorcery',
-                    'name': 'Astral Sorcery',
-                    'description': 'Starlight magic and celestial rituals',
-                    'downloads': '3.1M',
-                    'followers': '85K',
-                    'versions': ['1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['magic', 'celestial'],
-                    'icon_url': 'https://cdn.modrinth.com/data/astral-sorcery/icon.png',
-                    'author': 'HellFirePvP',
-                    'rating': 4.7
-                },
-                {
-                    'id': 'blood-magic',
-                    'name': 'Blood Magic',
-                    'description': 'Dark magic using blood and life essence',
-                    'downloads': '2.8M',
-                    'followers': '70K',
-                    'versions': ['1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['magic', 'dark'],
-                    'icon_url': 'https://cdn.modrinth.com/data/blood-magic/icon.png',
-                    'author': 'WayofTime',
-                    'rating': 4.6
-                }
-            ]
-        },
-        'adventure': {
-            'name': 'Adventure & Exploration',
-            'icon': 'fas fa-compass',
-            'color': 'success',
-            'description': 'Dungeons, structures, and exploration content',
-            'mods': [
-                {
-                    'id': 'dungeons-plus',
-                    'name': 'Dungeons Plus',
-                    'description': 'Enhanced dungeons and adventure structures',
-                    'downloads': '1.8M',
-                    'followers': '45K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2'],
-                    'categories': ['adventure', 'dungeons'],
-                    'icon_url': 'https://cdn.modrinth.com/data/dungeons-plus/icon.png',
-                    'author': 'ModdingLegacy',
-                    'rating': 4.5
-                },
-                {
-                    'id': 'biomes-o-plenty',
-                    'name': 'Biomes O\' Plenty',
-                    'description': 'Adds 80+ new biomes and world generation',
-                    'downloads': '7.5M',
-                    'followers': '180K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['worldgen', 'biomes'],
-                    'icon_url': 'https://cdn.modrinth.com/data/biomes-o-plenty/icon.png',
-                    'author': 'Forstride',
-                    'rating': 4.8
-                },
-                {
-                    'id': 'quark',
-                    'name': 'Quark',
-                    'description': 'Small improvements and features to vanilla Minecraft',
-                    'downloads': '9.2M',
-                    'followers': '220K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['vanilla+', 'improvements'],
-                    'icon_url': 'https://cdn.modrinth.com/data/quark/icon.png',
-                    'author': 'Vazkii',
-                    'rating': 4.9
-                },
-                {
-                    'id': 'waystones',
-                    'name': 'Waystones',
-                    'description': 'Teleportation system with waystone blocks',
-                    'downloads': '3.3M',
-                    'followers': '90K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2'],
-                    'categories': ['utility', 'teleportation'],
-                    'icon_url': 'https://cdn.modrinth.com/data/waystones/icon.png',
-                    'author': 'BlayTheNinth',
-                    'rating': 4.7
-                }
-            ]
-        },
-        'storage': {
-            'name': 'Storage & Organization',
-            'icon': 'fas fa-boxes',
-            'color': 'warning',
-            'description': 'Storage solutions and inventory management',
-            'mods': [
-                {
-                    'id': 'refined-storage',
-                    'name': 'Refined Storage',
-                    'description': 'Digital storage system with wireless access',
-                    'downloads': '4.8M',
-                    'followers': '120K',
-                    'versions': ['1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['storage', 'digital'],
-                    'icon_url': 'https://cdn.modrinth.com/data/refined-storage/icon.png',
-                    'author': 'raoulvdberge',
-                    'rating': 4.8
-                },
-                {
-                    'id': 'applied-energistics-2',
-                    'name': 'Applied Energistics 2',
-                    'description': 'Digital storage and automation network',
-                    'downloads': '6.5M',
-                    'followers': '160K',
-                    'versions': ['1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['storage', 'automation'],
-                    'icon_url': 'https://cdn.modrinth.com/data/applied-energistics-2/icon.png',
-                    'author': 'AlgorithmX2',
-                    'rating': 4.9
-                },
-                {
-                    'id': 'iron-chests',
-                    'name': 'Iron Chests',
-                    'description': 'Upgradable chests with more storage capacity',
-                    'downloads': '2.1M',
-                    'followers': '55K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['storage', 'chests'],
-                    'icon_url': 'https://cdn.modrinth.com/data/iron-chests/icon.png',
-                    'author': 'ProgWML6',
-                    'rating': 4.6
-                },
-                {
-                    'id': 'storage-drawers',
-                    'name': 'Storage Drawers',
-                    'description': 'Compact storage with visual item display',
-                    'downloads': '3.7M',
-                    'followers': '95K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['storage', 'drawers'],
-                    'icon_url': 'https://cdn.modrinth.com/data/storage-drawers/icon.png',
-                    'author': 'Texelsaur',
-                    'rating': 4.7
-                }
-            ]
-        },
-        'food': {
-            'name': 'Food & Agriculture',
-            'icon': 'fas fa-utensils',
-            'color': 'info',
-            'description': 'Cooking, farming, and food-related content',
-            'mods': [
-                {
-                    'id': 'pam-harvestcraft',
-                    'name': 'Pam\'s HarvestCraft 2',
-                    'description': 'Expanded farming and cooking with 1000+ items',
-                    'downloads': '5.9M',
-                    'followers': '140K',
-                    'versions': ['1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['food', 'farming'],
-                    'icon_url': 'https://cdn.modrinth.com/data/pams-harvestcraft-2/icon.png',
-                    'author': 'PamelaCollins',
-                    'rating': 4.8
-                },
-                {
-                    'id': 'cooking-for-blockheads',
-                    'name': 'Cooking for Blockheads',
-                    'description': 'Kitchen automation and cooking tools',
-                    'downloads': '2.4M',
-                    'followers': '65K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['food', 'automation'],
-                    'icon_url': 'https://cdn.modrinth.com/data/cooking-for-blockheads/icon.png',
-                    'author': 'BlayTheNinth',
-                    'rating': 4.7
-                },
-                {
-                    'id': 'farmer-delight',
-                    'name': 'Farmer\'s Delight',
-                    'description': 'Enhanced farming and cooking mechanics',
-                    'downloads': '1.9M',
-                    'followers': '50K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2'],
-                    'categories': ['food', 'farming'],
-                    'icon_url': 'https://cdn.modrinth.com/data/farmers-delight/icon.png',
-                    'author': 'vectorwing',
-                    'rating': 4.6
-                },
-                {
-                    'id': 'simple-farming',
-                    'name': 'Simple Farming',
-                    'description': 'Simple and balanced farming additions',
-                    'downloads': '1.2M',
-                    'followers': '35K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2'],
-                    'categories': ['food', 'farming'],
-                    'icon_url': 'https://cdn.modrinth.com/data/simple-farming/icon.png',
-                    'author': 'enemeez1',
-                    'rating': 4.5
-                }
-            ]
-        },
-        'decorative': {
-            'name': 'Decorative & Building',
-            'icon': 'fas fa-paint-brush',
-            'color': 'secondary',
-            'description': 'Building blocks, furniture, and decorative items',
-            'mods': [
-                {
-                    'id': 'chisel',
-                    'name': 'Chisel',
-                    'description': 'Decorative blocks and building variations',
-                    'downloads': '4.2M',
-                    'followers': '105K',
-                    'versions': ['1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['decorative', 'building'],
-                    'icon_url': 'https://cdn.modrinth.com/data/chisel/icon.png',
-                    'author': 'tterrag1098',
-                    'rating': 4.7
-                },
-                {
-                    'id': 'bibliocraft',
-                    'name': 'BiblioCraft',
-                    'description': 'Furniture and decorative items for builders',
-                    'downloads': '3.6M',
-                    'followers': '90K',
-                    'versions': ['1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['decorative', 'furniture'],
-                    'icon_url': 'https://cdn.modrinth.com/data/bibliocraft/icon.png',
-                    'author': 'Nuchaz',
-                    'rating': 4.6
-                },
-                {
-                    'id': 'decorative-blocks',
-                    'name': 'Decorative Blocks',
-                    'description': 'Additional decorative blocks and building materials',
-                    'downloads': '2.8M',
-                    'followers': '75K',
-                    'versions': ['1.20.1', '1.19.2', '1.18.2'],
-                    'categories': ['decorative', 'building'],
-                    'icon_url': 'https://cdn.modrinth.com/data/decorative-blocks/icon.png',
-                    'author': 'stohun',
-                    'rating': 4.5
-                },
-                {
-                    'id': 'building-gadgets',
-                    'name': 'Building Gadgets',
-                    'description': 'Tools for faster and easier building',
-                    'downloads': '3.1M',
-                    'followers': '85K',
-                    'versions': ['1.19.2', '1.18.2', '1.16.5'],
-                    'categories': ['utility', 'building'],
-                    'icon_url': 'https://cdn.modrinth.com/data/building-gadgets/icon.png',
-                    'author': 'Direwolf20',
-                    'rating': 4.8
-                }
-            ]
-        }
-    }
+    """Show popular mods from Modrinth with real API data"""
+    global mod_manager
     
-    return render_template('popular_mods.html', categories=popular_mods_data)
+    if not mod_manager:
+        flash('Mod manager not initialized', 'error')
+        return redirect(url_for('mods'))
+    
+    try:
+        # Get popular mods from Modrinth API
+        popular_mods_list = mod_manager.get_popular_modrinth_mods(limit=100)
+        
+        # Group mods by category for better organization
+        categorized_mods = {
+            'tech': {
+                'name': 'Technology & Automation',
+                'icon': 'fas fa-cogs',
+                'color': 'primary',
+                'description': 'Automation, machines, and technological advancements',
+                'mods': []
+            },
+            'magic': {
+                'name': 'Magic & Fantasy',
+                'icon': 'fas fa-magic',
+                'color': 'purple',
+                'description': 'Magical spells, rituals, and mystical content',
+                'mods': []
+            },
+            'adventure': {
+                'name': 'Adventure & Exploration',
+                'icon': 'fas fa-compass',
+                'color': 'success',
+                'description': 'Dungeons, structures, and exploration content',
+                'mods': []
+            },
+            'storage': {
+                'name': 'Storage & Organization',
+                'icon': 'fas fa-boxes',
+                'color': 'warning',
+                'description': 'Storage solutions and inventory management',
+                'mods': []
+            },
+            'utility': {
+                'name': 'Utility & Quality of Life',
+                'icon': 'fas fa-tools',
+                'color': 'info',
+                'description': 'Tools and improvements for better gameplay',
+                'mods': []
+            },
+            'worldgen': {
+                'name': 'World Generation',
+                'icon': 'fas fa-mountain',
+                'color': 'secondary',
+                'description': 'Biomes, structures, and world generation',
+                'mods': []
+            },
+            'other': {
+                'name': 'Other Mods',
+                'icon': 'fas fa-puzzle-piece',
+                'color': 'dark',
+                'description': 'Miscellaneous and other mods',
+                'mods': []
+            }
+        }
+        
+        # Categorize mods based on their categories
+        for mod in popular_mods_list:
+            mod_categories = [cat.lower() for cat in mod.get('categories', [])]
+            
+            # Determine which category this mod belongs to
+            if any(cat in mod_categories for cat in ['tech', 'automation', 'energy', 'industrial']):
+                categorized_mods['tech']['mods'].append(mod)
+            elif any(cat in mod_categories for cat in ['magic', 'spells', 'ritual', 'arcane']):
+                categorized_mods['magic']['mods'].append(mod)
+            elif any(cat in mod_categories for cat in ['adventure', 'dungeons', 'exploration']):
+                categorized_mods['adventure']['mods'].append(mod)
+            elif any(cat in mod_categories for cat in ['storage', 'digital', 'inventory']):
+                categorized_mods['storage']['mods'].append(mod)
+            elif any(cat in mod_categories for cat in ['utility', 'quality-of-life', 'tools']):
+                categorized_mods['utility']['mods'].append(mod)
+            elif any(cat in mod_categories for cat in ['worldgen', 'biomes', 'structures']):
+                categorized_mods['worldgen']['mods'].append(mod)
+            else:
+                categorized_mods['other']['mods'].append(mod)
+        
+        # Remove empty categories
+        categorized_mods = {k: v for k, v in categorized_mods.items() if v['mods']}
+        
+        return render_template('popular_mods.html', 
+                             categorized_mods=categorized_mods,
+                             total_mods=len(popular_mods_list))
+                             
+    except Exception as e:
+        flash(f'Error loading popular mods: {str(e)}', 'error')
+        return redirect(url_for('mods'))
 
 @app.route('/download_mod/<project_id>')
 def download_mod(project_id):
@@ -945,170 +716,211 @@ def stop_server():
 
 @app.route('/install_forge')
 def install_forge():
-    global server_manager
-    
-    if server_manager:
-        try:
-            # Check if Forge is already installed
-            server_jar = server_manager.find_server_jar()
-            if server_jar:
-                flash('Forge is already installed!', 'info')
-                return redirect(url_for('mods'))
-            
-            # Redirect to version selection page
-            return redirect(url_for('select_forge_version'))
-            
-        except Exception as e:
-            flash(f'Error checking Forge installation: {str(e)}', 'error')
-    else:
-        flash('Server manager not initialized', 'error')
-    
-    return redirect(url_for('mods'))
+    """Install Forge using the modern installer"""
+    try:
+        from forge_installer import ModernForgeInstaller
+        
+        # Create installer
+        installer = ModernForgeInstaller(Path("server"))
+        
+        # Check if Forge is already installed
+        existing_jar = installer.find_installed_forge_jar()
+        if existing_jar:
+            flash(f'Forge is already installed: {existing_jar.name}', 'info')
+            return redirect(url_for('mods'))
+        
+        # Get available Minecraft versions
+        versions = installer.get_available_minecraft_versions()
+        
+        return render_template('install_forge.html', 
+                             minecraft_versions=versions,
+                             current_version="1.20.4")
+                             
+    except Exception as e:
+        flash(f'Error initializing Forge installer: {str(e)}', 'error')
+        return redirect(url_for('mods'))
 
-@app.route('/select_forge_version')
-def select_forge_version():
-    """Show Forge version selection page"""
-    # Comprehensive Minecraft versions and their Forge builds with detailed information
-    forge_versions = {
-        '1.20.4': {
-            'name': 'Minecraft 1.20.4',
-            'status': 'Latest Stable',
-            'recommended': '49.0.3',
-            'latest': '49.0.3',
-            'builds': [
-                {'version': '49.0.3', 'type': 'recommended', 'date': '2024-01-15', 'notes': 'Latest stable build'},
-                {'version': '49.0.2', 'type': 'stable', 'date': '2024-01-10', 'notes': 'Previous stable'},
-                {'version': '49.0.1', 'type': 'stable', 'date': '2024-01-05', 'notes': 'Bug fixes'},
-                {'version': '49.0.0', 'type': 'stable', 'date': '2024-01-01', 'notes': 'Initial release'}
-            ],
-            'description': 'Latest Minecraft version with newest features and mods',
-            'mod_count': '5000+',
-            'java_version': '17+',
-            'performance': 'Excellent',
-            'stability': 'Very Stable'
-        },
-        '1.20.1': {
-            'name': 'Minecraft 1.20.1',
-            'status': 'Popular',
-            'recommended': '47.1.0',
-            'latest': '47.2.0',
-            'builds': [
-                {'version': '47.1.0', 'type': 'recommended', 'date': '2023-06-15', 'notes': 'Most stable for mods'},
-                {'version': '47.2.0', 'type': 'latest', 'date': '2023-06-20', 'notes': 'Latest features'},
-                {'version': '47.0.0', 'type': 'stable', 'date': '2023-06-10', 'notes': 'Initial release'},
-                {'version': '46.0.0', 'type': 'stable', 'date': '2023-06-05', 'notes': 'Previous major'}
-            ],
-            'description': 'Popular version with excellent mod support and stability',
-            'mod_count': '4000+',
-            'java_version': '17+',
-            'performance': 'Very Good',
-            'stability': 'Very Stable'
-        },
-        '1.19.2': {
-            'name': 'Minecraft 1.19.2',
-            'status': 'Recommended',
-            'recommended': '43.2.0',
-            'latest': '43.3.0',
-            'builds': [
-                {'version': '43.2.0', 'type': 'recommended', 'date': '2022-08-15', 'notes': 'Most stable for modpacks'},
-                {'version': '43.3.0', 'type': 'latest', 'date': '2022-08-20', 'notes': 'Latest features'},
-                {'version': '43.1.0', 'type': 'stable', 'date': '2022-08-10', 'notes': 'Bug fixes'},
-                {'version': '43.0.0', 'type': 'stable', 'date': '2022-08-05', 'notes': 'Initial release'}
-            ],
-            'description': 'Most stable version with extensive mod library and community support',
-            'mod_count': '6000+',
-            'java_version': '17+',
-            'performance': 'Excellent',
-            'stability': 'Extremely Stable'
-        },
-        '1.18.2': {
-            'name': 'Minecraft 1.18.2',
-            'status': 'LTS',
-            'recommended': '40.2.0',
-            'latest': '40.2.0',
-            'builds': [
-                {'version': '40.2.0', 'type': 'recommended', 'date': '2022-02-15', 'notes': 'Long-term support'},
-                {'version': '40.1.0', 'type': 'stable', 'date': '2022-02-10', 'notes': 'Previous stable'},
-                {'version': '40.0.0', 'type': 'stable', 'date': '2022-02-05', 'notes': 'Initial release'},
-                {'version': '39.0.0', 'type': 'stable', 'date': '2022-01-30', 'notes': 'Previous major'}
-            ],
-            'description': 'Long-term support version with mature mod ecosystem',
-            'mod_count': '3500+',
-            'java_version': '17+',
-            'performance': 'Very Good',
-            'stability': 'Very Stable'
-        },
-        '1.16.5': {
-            'name': 'Minecraft 1.16.5',
-            'status': 'Legacy',
-            'recommended': '36.2.0',
-            'latest': '36.2.0',
-            'builds': [
-                {'version': '36.2.0', 'type': 'recommended', 'date': '2021-03-15', 'notes': 'Final stable'},
-                {'version': '36.1.0', 'type': 'stable', 'date': '2021-03-10', 'notes': 'Previous stable'},
-                {'version': '36.0.0', 'type': 'stable', 'date': '2021-03-05', 'notes': 'Initial release'},
-                {'version': '35.0.0', 'type': 'stable', 'date': '2021-02-28', 'notes': 'Previous major'}
-            ],
-            'description': 'Legacy version with classic mods and established modpacks',
-            'mod_count': '2500+',
-            'java_version': '8+',
-            'performance': 'Good',
-            'stability': 'Stable'
-        },
-        '1.12.2': {
-            'name': 'Minecraft 1.12.2',
-            'status': 'Classic',
-            'recommended': '14.23.5.2855',
-            'latest': '14.23.5.2855',
-            'builds': [
-                {'version': '14.23.5.2855', 'type': 'recommended', 'date': '2018-01-15', 'notes': 'Final stable'},
-                {'version': '14.23.5.2854', 'type': 'stable', 'date': '2018-01-10', 'notes': 'Previous stable'},
-                {'version': '14.23.5.2853', 'type': 'stable', 'date': '2018-01-05', 'notes': 'Bug fixes'},
-                {'version': '14.23.5.2852', 'type': 'stable', 'date': '2018-01-01', 'notes': 'Previous major'}
-            ],
-            'description': 'Classic version with legendary mods and nostalgic modpacks',
-            'mod_count': '1500+',
-            'java_version': '8',
-            'performance': 'Good',
-            'stability': 'Stable'
-        }
-    }
-    
-    return render_template('select_forge_version.html', forge_versions=forge_versions)
-
-@app.route('/install_forge_version', methods=['POST'])
-def install_forge_version():
-    """Install specific Forge version"""
+@app.route('/detect_forge')
+def detect_forge():
+    """Detect installed Forge versions"""
     global server_manager
     
     if not server_manager:
         flash('Server manager not initialized', 'error')
         return redirect(url_for('mods'))
     
-    minecraft_version = request.form.get('minecraft_version')
-    forge_build = request.form.get('forge_build')
+    try:
+        detected_versions = server_manager.detect_forge_versions()
+        available_versions = server_manager.get_available_forge_versions()
+        
+        return render_template('detect_forge.html', 
+                             detected_versions=detected_versions,
+                             available_versions=available_versions)
+                             
+    except Exception as e:
+        flash(f'Error detecting Forge versions: {str(e)}', 'error')
+        return redirect(url_for('mods'))
+
+@app.route('/select_forge_version')
+def select_forge_version():
+    """Show Forge version selection page"""
+    global server_manager
     
-    if not minecraft_version or not forge_build:
-        flash('Please select both Minecraft version and Forge build', 'error')
+    if not server_manager:
+        flash('Server manager not initialized', 'error')
+        return redirect(url_for('mods'))
+    
+    try:
+        # Get detected versions
+        detected_versions = server_manager.detect_forge_versions()
+        
+        # Get available versions for installation
+        available_versions = server_manager.get_available_forge_versions()
+        
+        # Get current server JAR
+        current_jar = server_manager.find_server_jar()
+        current_jar_name = current_jar.name if current_jar else None
+        
+        return render_template('select_forge_version.html', 
+                             detected_versions=detected_versions,
+                             available_versions=available_versions,
+                             current_jar=current_jar_name)
+                             
+    except Exception as e:
+        flash(f'Error loading Forge versions: {str(e)}', 'error')
+        return redirect(url_for('mods'))
+
+@app.route('/install_forge_version', methods=['POST'])
+def install_forge_version():
+    """Install a specific Forge version with improved error handling and seamless activation"""
+    try:
+        from forge_installer import ModernForgeInstaller
+        
+        minecraft_version = request.form.get('minecraft_version', '1.20.4')
+        forge_build = request.form.get('forge_build', '')
+        
+        if not forge_build:
+            flash('No Forge build selected. Please select a Forge version to install.', 'error')
+            return redirect(url_for('install_forge'))
+        
+        # Check Java installation first
+        try:
+            result = subprocess.run(['java', '-version'], capture_output=True, text=True, timeout=10)
+            if result.returncode != 0:
+                flash('Java is not installed or not working. Please install Java 17 or higher from https://adoptium.net', 'error')
+                return redirect(url_for('install_forge'))
+        except Exception:
+            flash('Java is not installed. Please install Java 17 or higher from https://adoptium.net', 'error')
+            return redirect(url_for('install_forge'))
+        
+        # Check server directory permissions
+        server_dir = Path("server")
+        try:
+            server_dir.mkdir(exist_ok=True)
+            test_file = server_dir / ".test_write"
+            test_file.write_text("test")
+            test_file.unlink()
+        except Exception as e:
+            flash(f'Cannot write to server directory. Check permissions: {str(e)}', 'error')
+            return redirect(url_for('install_forge'))
+        
+        # Create installer
+        installer = ModernForgeInstaller(server_dir)
+        
+        # Check if Forge is already installed
+        existing_jar = installer.find_installed_forge_jar()
+        if existing_jar:
+            flash(f'Forge is already installed: {existing_jar.name}. Remove it first if you want to reinstall.', 'info')
+            return redirect(url_for('mods'))
+        
+        # Install Forge with detailed error messages
+        success, message = installer.install_forge_server(minecraft_version, forge_build)
+        
+        if success:
+            # Find installed JAR and create startup script
+            jar_path = installer.find_installed_forge_jar()
+            if jar_path:
+                # Auto-select the new Forge JAR as active (no manual step needed)
+                # Optionally, update config or state if needed
+                if installer.create_server_script(jar_path):
+                    flash(f'✅ Forge {minecraft_version}-{forge_build} installed and selected! Server JAR: {jar_path.name}. Startup scripts created. Ready to start your server.', 'success')
+                else:
+                    flash(f'✅ Forge {minecraft_version}-{forge_build} installed and selected! Server JAR: {jar_path.name}. (Startup scripts could not be created)', 'warning')
+            else:
+                flash(f'✅ Forge {minecraft_version}-{forge_build} installed, but could not find server JAR. Check the server directory.', 'warning')
+            # Redirect to dashboard for next step
+            return redirect(url_for('dashboard'))
+        else:
+            # Provide specific error messages
+            if "Failed to download" in message:
+                flash(f'❌ Download failed: {message}. Check your internet connection and try again.', 'error')
+            elif "Installation failed" in message:
+                flash(f'❌ Installation failed: {message}. Make sure Java is installed and you have sufficient disk space.', 'error')
+            elif "timed out" in message:
+                flash(f'❌ Installation timed out: {message}. Try again or check your internet connection.', 'error')
+            else:
+                flash(f'❌ Forge installation failed: {message}', 'error')
+            return redirect(url_for('select_forge_version'))
+        
+    except ImportError:
+        flash('❌ Forge installer module not found. Please restart MCUS.', 'error')
+        return redirect(url_for('install_forge'))
+    except Exception as e:
+        flash(f'❌ Unexpected error during Forge installation: {str(e)}', 'error')
+        return redirect(url_for('install_forge'))
+
+@app.route('/get_forge_versions/<minecraft_version>')
+def get_forge_versions(minecraft_version):
+    """Get available Forge versions for a Minecraft version (AJAX)"""
+    try:
+        from forge_installer import ModernForgeInstaller
+        
+        installer = ModernForgeInstaller(Path("server"))
+        versions = installer.get_forge_versions(minecraft_version)
+        
+        return jsonify(versions)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/use_forge_version', methods=['POST'])
+def use_forge_version():
+    """Set a specific Forge version as the active server JAR"""
+    global server_manager
+    
+    if not server_manager:
+        flash('Server manager not initialized', 'error')
+        return redirect(url_for('mods'))
+    
+    selected_file = request.form.get('selected_file')
+    
+    if not selected_file:
+        flash('No Forge version selected', 'error')
         return redirect(url_for('select_forge_version'))
     
     try:
-        # Check if Forge is already installed
-        server_jar = server_manager.find_server_jar()
-        if server_jar:
-            flash('Forge is already installed!', 'info')
-            return redirect(url_for('mods'))
+        # Find the selected JAR file
+        jar_path = server_manager.server_dir / selected_file
         
-        flash(f'Installing Forge {minecraft_version}-{forge_build}... This may take a few minutes. Please wait.', 'info')
+        if not jar_path.exists():
+            flash(f'Selected file not found: {selected_file}', 'error')
+            return redirect(url_for('select_forge_version'))
         
-        if server_manager.install_forge_specific(minecraft_version, forge_build):
-            flash(f'Forge {minecraft_version}-{forge_build} installed successfully! You can now start your server.', 'success')
-        else:
-            flash(f'Failed to install Forge {minecraft_version}-{forge_build}. Please try a different version or download manually from https://files.minecraftforge.net/', 'error')
+        # Validate it's a Forge JAR
+        if not server_manager._is_forge_jar(jar_path):
+            flash('Selected file is not a valid Forge JAR', 'error')
+            return redirect(url_for('select_forge_version'))
+        
+        # Get version info
+        version_info = server_manager._extract_forge_version(jar_path)
+        
+        flash(f'Successfully selected Forge version: {version_info["version_number"]}', 'success')
+        
+        return redirect(url_for('mods'))
+        
     except Exception as e:
-        flash(f'Error installing Forge: {str(e)}', 'error')
-    
-    return redirect(url_for('mods'))
+        flash(f'Error selecting Forge version: {str(e)}', 'error')
+        return redirect(url_for('select_forge_version'))
 
 @app.route('/backup_world')
 def backup_world():
@@ -1126,61 +938,229 @@ def backup_world():
 
 @app.route('/diagnostics')
 def diagnostics():
-    """Show detailed system diagnostics"""
-    diagnostics_info = get_startup_diagnostics()
-    
-    # Get additional system information
-    system_info = {
-        'platform': os.name,
-        'python_version': sys.version,
-        'current_directory': os.getcwd(),
-        'server_directory': str(Path("server").absolute()),
-        'server_directory_exists': Path("server").exists(),
-        'server_directory_writable': False,
-        'java_path': None,
-        'java_version': None,
-        'memory_total': None,
-        'memory_available': None,
-        'disk_total': None,
-        'disk_free': None
-    }
-    
-    # Check server directory permissions
-    try:
-        server_dir = Path("server")
-        test_file = server_dir / ".test_write"
-        test_file.write_text("test")
-        test_file.unlink()
-        system_info['server_directory_writable'] = True
-    except:
-        pass
-    
-    # Get Java information
-    try:
-        result = subprocess.run(['java', '-version'], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            system_info['java_path'] = 'java'
-            import re
-            version_match = re.search(r'"([^"]+)"', result.stderr)
-            if version_match:
-                system_info['java_version'] = version_match.group(1)
-    except:
-        pass
-    
-    # Get system resources
+    """Show comprehensive diagnostics and troubleshooting page"""
+    return render_template('diagnostics.html')
+
+# Diagnostics API endpoints
+@app.route('/api/diagnostics/system-info')
+def api_system_info():
+    """Get system information for diagnostics page"""
     try:
         import psutil
         memory = psutil.virtual_memory()
-        system_info['memory_total'] = f"{memory.total // (1024**3)}GB"
-        system_info['memory_available'] = f"{memory.available // (1024**3)}GB"
+        disk = psutil.disk_usage('.')
         
-        disk = psutil.disk_usage(str(Path("server")))
-        system_info['disk_total'] = f"{disk.total // (1024**3)}GB"
-        system_info['disk_free'] = f"{disk.free // (1024**3)}GB"
-    except ImportError:
-        pass
+        # Get Java version
+        try:
+            result = subprocess.run(['java', '-version'], capture_output=True, text=True, timeout=10)
+            java_version = result.stderr.split('\n')[0] if result.returncode == 0 else 'Not found'
+        except:
+            java_version = 'Not found'
+        
+        return jsonify({
+            'python_version': sys.version.split()[0],
+            'java_version': java_version,
+            'memory_info': f"{memory.available // (1024**3)}GB available of {memory.total // (1024**3)}GB total",
+            'os_info': f"{sys.platform} ({os.name})",
+            'disk_space': f"{disk.free // (1024**3)}GB free of {disk.total // (1024**3)}GB total",
+            'network_status': 'Connected'  # Basic check
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/diagnostics/system-health')
+def api_system_health():
+    """Get real-time system health metrics"""
+    try:
+        import psutil
+        
+        # CPU usage
+        cpu_percent = psutil.cpu_percent(interval=1)
+        
+        # Memory usage
+        memory = psutil.virtual_memory()
+        memory_percent = memory.percent
+        
+        # Disk usage
+        disk = psutil.disk_usage('.')
+        disk_percent = (disk.used / disk.total) * 100
+        
+        # Network status (basic check)
+        try:
+            requests.get('https://www.google.com', timeout=5)
+            network_status = 'Connected'
+        except:
+            network_status = 'Disconnected'
+        
+        return jsonify({
+            'cpu_usage': f"{cpu_percent:.1f}%",
+            'memory_usage': f"{memory_percent:.1f}%",
+            'disk_usage': f"{disk_percent:.1f}%",
+            'network_status': network_status
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/diagnostics/run/<diagnostic_type>')
+def api_run_diagnostic(diagnostic_type):
+    """Run specific diagnostic tests"""
+    results = []
     
-    return render_template('diagnostics.html', diagnostics=diagnostics_info, system_info=system_info)
+    try:
+        if diagnostic_type == 'java' or diagnostic_type == 'all':
+            # Check Java installation
+            try:
+                result = subprocess.run(['java', '-version'], capture_output=True, text=True, timeout=10)
+                if result.returncode == 0:
+                    java_version = result.stderr.split('\n')[0]
+                    results.append({
+                        'name': 'Java Installation',
+                        'status': 'success',
+                        'message': 'Java is installed and accessible',
+                        'details': java_version
+                    })
+                else:
+                    results.append({
+                        'name': 'Java Installation',
+                        'status': 'error',
+                        'message': 'Java is not installed or not in PATH',
+                        'details': 'Install Java 8 or higher from adoptium.net'
+                    })
+            except Exception as e:
+                results.append({
+                    'name': 'Java Installation',
+                    'status': 'error',
+                    'message': f'Error checking Java: {str(e)}',
+                    'details': 'Check Java installation'
+                })
+        
+        if diagnostic_type == 'forge' or diagnostic_type == 'all':
+            # Check Forge installation
+            server_dir = Path("server")
+            forge_jars = list(server_dir.glob("forge-*.jar")) if server_dir.exists() else []
+            
+            if forge_jars:
+                results.append({
+                    'name': 'Forge Installation',
+                    'status': 'success',
+                    'message': f'Forge server JAR found: {forge_jars[0].name}',
+                    'details': f'Located in {server_dir.absolute()}'
+                })
+            else:
+                results.append({
+                    'name': 'Forge Installation',
+                    'status': 'warning',
+                    'message': 'No Forge server JAR found',
+                    'details': 'Install Forge from the Mods page'
+                })
+        
+        if diagnostic_type == 'network' or diagnostic_type == 'all':
+            # Test network connectivity
+            try:
+                response = requests.get('https://api.modrinth.com/v2/search', timeout=10)
+                if response.status_code == 200:
+                    results.append({
+                        'name': 'Network Connectivity',
+                        'message': 'Network connection is working',
+                        'status': 'success',
+                        'details': 'Can reach external services'
+                    })
+                else:
+                    results.append({
+                        'name': 'Network Connectivity',
+                        'status': 'warning',
+                        'message': 'Network connection issues',
+                        'details': f'HTTP {response.status_code}'
+                    })
+            except Exception as e:
+                results.append({
+                    'name': 'Network Connectivity',
+                    'status': 'error',
+                    'message': 'Network connection failed',
+                    'details': str(e)
+                })
+        
+        if diagnostic_type == 'server' or diagnostic_type == 'all':
+            # Check server files
+            server_dir = Path("server")
+            if server_dir.exists():
+                if os.access(server_dir, os.W_OK):
+                    results.append({
+                        'name': 'Server Directory',
+                        'status': 'success',
+                        'message': 'Server directory exists and is writable',
+                        'details': str(server_dir.absolute())
+                    })
+                else:
+                    results.append({
+                        'name': 'Server Directory',
+                        'status': 'error',
+                        'message': 'Server directory exists but is not writable',
+                        'details': 'Check permissions or run as administrator'
+                    })
+            else:
+                results.append({
+                    'name': 'Server Directory',
+                    'status': 'warning',
+                    'message': 'Server directory does not exist',
+                    'details': 'Will be created when needed'
+                })
+        
+        if diagnostic_type == 'mods' or diagnostic_type == 'all':
+            # Check mods directory
+            mods_dir = Path("server/mods")
+            if mods_dir.exists():
+                mod_count = len(list(mods_dir.glob("*.jar")))
+                results.append({
+                    'name': 'Mods Directory',
+                    'status': 'success',
+                    'message': f'Mods directory exists with {mod_count} mods',
+                    'details': str(mods_dir.absolute())
+                })
+            else:
+                results.append({
+                    'name': 'Mods Directory',
+                    'status': 'warning',
+                    'message': 'Mods directory does not exist',
+                    'details': 'Will be created when needed'
+                })
+        
+        return jsonify(results)
+        
+    except Exception as e:
+        return jsonify([{
+            'name': 'Diagnostic Error',
+            'status': 'error',
+            'message': f'Error running diagnostics: {str(e)}',
+            'details': 'Check system configuration'
+        }]), 500
+
+@app.route('/api/diagnostics/logs/<log_file>')
+def api_get_log(log_file):
+    """Get log file contents"""
+    try:
+        log_path = Path(log_file)
+        if not log_path.exists():
+            return f"Log file not found: {log_file}", 404
+        
+        # Read last 1000 lines to avoid overwhelming the browser
+        with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+            return ''.join(lines[-1000:])
+    except Exception as e:
+        return f"Error reading log: {str(e)}", 500
+
+@app.route('/api/diagnostics/logs/<log_file>/download')
+def api_download_log(log_file):
+    """Download log file"""
+    try:
+        log_path = Path(log_file)
+        if not log_path.exists():
+            return f"Log file not found: {log_file}", 404
+        
+        return send_file(log_path, as_attachment=True, download_name=log_path.name)
+    except Exception as e:
+        return f"Error downloading log: {str(e)}", 500
 
 @app.route('/fix_permissions')
 def fix_permissions():
@@ -1261,12 +1241,29 @@ def modrinth_project_details(project_id):
     """Show detailed information about a specific Modrinth project"""
     global mod_manager
     
-    project = mod_manager.get_modrinth_project_details(project_id) if mod_manager else None
-    if not project:
-        flash('Project not found', 'error')
+    if not mod_manager:
+        flash('Mod manager not initialized', 'error')
         return redirect(url_for('browse_modrinth'))
     
-    return render_template('modrinth_project.html', project=project)
+    try:
+        project = mod_manager.get_modrinth_project_details(project_id)
+        if not project:
+            flash(f'Project "{project_id}" not found or could not be loaded', 'error')
+            return redirect(url_for('browse_modrinth'))
+        
+        # Ensure all required fields exist to prevent template errors
+        required_fields = ['id', 'name', 'description', 'downloads', 'followers', 'author', 
+                          'categories', 'versions', 'project_type', 'client_side', 'server_side']
+        
+        for field in required_fields:
+            if field not in project:
+                project[field] = '' if field in ['name', 'description', 'author'] else [] if field in ['categories', 'versions'] else 0
+        
+        return render_template('modrinth_project.html', project=project)
+        
+    except Exception as e:
+        flash(f'Error loading project details: {str(e)}', 'error')
+        return redirect(url_for('browse_modrinth'))
 
 @app.route('/download_modrinth_version/<project_id>/<version_id>')
 def download_modrinth_version(project_id, version_id):
@@ -1283,6 +1280,186 @@ def download_modrinth_version(project_id, version_id):
     
     return redirect(request.referrer or url_for('browse_modrinth'))
 
+@app.route('/share_mcus')
+def share_mcus():
+    """Create a shareable MCUS package"""
+    try:
+        # Import the sharing functionality
+        from share_mcus import create_share_package, get_local_ip
+        
+        # Create the package
+        zip_name = create_share_package()
+        local_ip = get_local_ip()
+        
+        flash(f'Share package created! Your IP: {local_ip}', 'success')
+        
+        # Return the zip file for download
+        return send_file(zip_name, as_attachment=True, download_name=zip_name)
+        
+    except Exception as e:
+        flash(f'Error creating share package: {str(e)}', 'error')
+        return redirect(url_for('dashboard'))
+
+@app.route('/create_shortcut')
+def create_shortcut():
+    """Create desktop shortcut for MCUS"""
+    try:
+        # Import the shortcut creator
+        from create_shortcut import main as create_shortcut_main
+        
+        # Create the shortcut
+        create_shortcut_main()
+        
+        flash('Desktop shortcut created successfully!', 'success')
+        
+    except Exception as e:
+        flash(f'Error creating shortcut: {str(e)}', 'error')
+    
+    return redirect(url_for('dashboard'))
+
+@app.route('/api/forge/status')
+def api_forge_status():
+    """Get detailed Forge installation status"""
+    global server_manager
+    
+    if not server_manager:
+        return jsonify({
+            'error': 'Server manager not initialized'
+        }), 500
+    
+    try:
+        status = server_manager.get_forge_installation_status()
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({
+            'error': f'Failed to get Forge status: {e}'
+        }), 500
+
+@app.route('/api/forge/is_ready')
+def api_forge_is_ready():
+    """Check if Forge is properly installed and ready to run"""
+    global server_manager
+    
+    if not server_manager:
+        return jsonify({
+            'ready': False,
+            'error': 'Server manager not initialized'
+        }), 500
+    
+    try:
+        is_ready = server_manager.is_forge_properly_installed()
+        return jsonify({
+            'ready': is_ready
+        })
+    except Exception as e:
+        return jsonify({
+            'ready': False,
+            'error': f'Failed to check Forge readiness: {e}'
+        }), 500
+
+@app.route('/api/server/detailed_status')
+def api_server_detailed_status():
+    """Get detailed server status including Forge information"""
+    global server_manager, is_hosting
+    
+    if not server_manager:
+        return jsonify({
+            'error': 'Server manager not initialized'
+        }), 500
+    
+    try:
+        # Get basic server status
+        server_status = server_manager.get_server_status()
+        
+        # Get Forge status
+        forge_status = server_manager.get_forge_installation_status()
+        
+        # Check if server is actually running
+        java_processes = []
+        try:
+            result = subprocess.run(['ps', 'aux'], capture_output=True, text=True)
+            if result.returncode == 0:
+                for line in result.stdout.split('\n'):
+                    if 'java' in line and 'forge' in line.lower() and 'nogui' in line:
+                        java_processes.append(line.strip())
+        except:
+            pass
+        
+        # Determine actual server status
+        actual_running = len(java_processes) > 0
+        
+        return jsonify({
+            'server_status': server_status,
+            'forge_status': forge_status,
+            'actual_running': actual_running,
+            'java_processes': java_processes,
+            'web_interface_running': is_hosting
+        })
+    except Exception as e:
+        return jsonify({
+            'error': f'Failed to get detailed status: {e}'
+        }), 500
+
+@app.route('/api/updates/check')
+def api_check_updates():
+    """Check for updates"""
+    global update_checker
+    
+    if not update_checker:
+        return jsonify({
+            'error': 'Update checker not initialized'
+        }), 500
+    
+    try:
+        update_info = update_checker.check_for_updates(force_check=True)
+        return jsonify({
+            'update_available': update_info is not None,
+            'update_info': update_info
+        })
+    except Exception as e:
+        return jsonify({
+            'error': f'Failed to check for updates: {e}'
+        }), 500
+
+@app.route('/api/updates/notification')
+def api_get_update_notification():
+    """Get update notification HTML"""
+    global update_checker
+    
+    if not update_checker:
+        return jsonify({'html': None})
+    
+    try:
+        # First check cached update
+        update_info = update_checker.get_cached_update()
+        
+        # If no cached update, check for new updates
+        if not update_info:
+            update_info = update_checker.check_for_updates()
+        
+        if update_info and not update_info.get('seen_by_user'):
+            html = update_checker.get_update_notification_html(update_info)
+            return jsonify({'html': html})
+        else:
+            return jsonify({'html': None})
+            
+    except Exception as e:
+        return jsonify({'html': None})
+
+@app.route('/api/updates/dismiss', methods=['POST'])
+def api_dismiss_update():
+    """Dismiss update notification"""
+    global update_checker
+    
+    if not update_checker:
+        return jsonify({'success': False, 'error': 'Update checker not initialized'}), 500
+    
+    try:
+        update_checker.mark_update_as_seen()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     # Initialize managers
     initialize_managers()
@@ -1290,9 +1467,12 @@ if __name__ == '__main__':
     # Create templates directory if it doesn't exist
     os.makedirs('templates', exist_ok=True)
     
+    # Get port from environment variable (for Railway) or use default
+    port = int(os.environ.get('PORT', 3000))
+    
     print("MCUS Web Server starting...")
-    print("Open your browser and go to: http://localhost:3000")
+    print(f"Open your browser and go to: http://localhost:{port}")
     print("To share with friends, use your IP address instead of localhost")
     
     # Run the Flask app
-    app.run(host='0.0.0.0', port=3000, debug=True) 
+    app.run(host='0.0.0.0', port=port, debug=False) 

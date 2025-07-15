@@ -1,187 +1,206 @@
 # MCUS - Minecraft Unified Server
 
-A distributed Minecraft server hosting application that allows multiple computers across the USA to host the same server seamlessly. When one computer goes offline, another can take over without interruption.
+🎮 **The Ultimate Minecraft Server Management System**
 
-## Features
+MCUS is a comprehensive Minecraft server management platform that makes it easy to set up, manage, and run Minecraft servers with mod support, Forge integration, and advanced features.
 
-- **Distributed Hosting**: Multiple computers can host the same server
-- **Automatic Failover**: Seamless switching between host computers
-- **Easy Setup**: Simple GUI for connecting computers to the network
-- **Mod Management**: Easy installation and removal of mods
-- **Forge Support**: Built-in Forge server installation
-- **Server Control**: Logs, chat, and player management
-- **World Backup**: Automatic world backup functionality
-- **Free Hosting**: Uses Minecraft's Java hosting and Forge mod servers
+## ✨ Features
 
-## Requirements
+- 🚀 **One-Click Server Setup** - Get your Minecraft server running in minutes
+- 🔧 **Forge Integration** - Automatic Forge installation and management
+- 📦 **Mod Management** - Browse, search, and install mods from Modrinth
+- 🌐 **Web Interface** - Beautiful, modern web dashboard for server management
+- 🔄 **Real-time Monitoring** - Live server status, player tracking, and performance metrics
+- 💾 **Auto Backup** - Automatic world backups with configurable schedules
+- 🌍 **Multi-Host Support** - Distribute server load across multiple computers
+- 🛠️ **System Diagnostics** - Built-in troubleshooting and health checks
+- 📱 **Cross-Platform** - Works on Windows, macOS, and Linux
 
-- Python 3.7 or higher
-- Java 8 or higher (for Minecraft server)
-- Internet connection for mod downloads
-- Windows, macOS, or Linux
+## 🚀 Quick Start
 
-## Installation
+### Prerequisites
 
-1. **Clone or download this repository**
+- **Python 3.8+** - [Download Python](https://python.org)
+- **Java 21+** - Required for Forge servers
+  - **Windows**: Download from [Eclipse Temurin](https://adoptium.net/)
+  - **macOS**: `brew install openjdk@21`
+  - **Linux**: `sudo apt install openjdk-21-jdk`
+
+### Installation
+
+#### Local Installation
+
+1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/yourusername/MCUS.git
    cd MCUS
    ```
 
-2. **Install Python dependencies**
+2. **Run the setup script**
    ```bash
-   pip install -r requirements.txt
+   python setup.py
    ```
 
-3. **Run the application**
-   ```bash
-   python src/main.py
-   ```
+3. **Start MCUS**
+   - **Windows**: Double-click `LAUNCH_MCUS.bat`
+   - **macOS/Linux**: `./LAUNCH_MCUS.sh`
 
-## Quick Start Guide
+4. **Open your browser**
+   Navigate to: http://localhost:3000
 
-### 1. Initial Setup
+5. **Install Forge**
+   - Click "Install Forge" in the web interface
+   - Select your desired Minecraft version
+   - Wait for installation to complete
 
-1. Launch the application
-2. Go to the **Settings** tab
-3. Configure your server settings:
-   - Server Name
-   - Max Players
-   - Port (default: 25565)
-   - World Name
-4. Click "Save Settings"
+6. **Start your server**
+   - Click "Start Server" in the dashboard
+   - Your Minecraft server is now running!
 
-### 2. Install Forge
+#### Cloud Deployment (Railway)
 
-1. Go to the **Mods** tab
-2. Click "Install Forge"
-3. Wait for the installation to complete
+Want to host MCUS in the cloud? Deploy to Railway with one click:
 
-### 3. Add Host Computers
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/new?template=https://github.com/yourusername/MCUS)
 
-1. Go to the **Hosting** tab
-2. Enter your computer name
-3. Click "Join Hosting Network"
-4. Repeat for each computer that will host the server
+**Railway Deployment Steps:**
+1. Click the "Deploy on Railway" button above
+2. Sign in with your GitHub account
+3. Railway will automatically deploy MCUS
+4. Access your instance at the provided URL
 
-### 4. Install Mods
+**Note**: Railway deployment is for the web interface only. The actual Minecraft server should run locally.
 
-1. Go to the **Mods** tab
-2. Click "Browse Mod Files" to install local mod files
-3. Or click "Download from CurseForge" to visit the mod website
+For detailed Railway deployment instructions, see [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md).
 
-### 5. Start the Server
+## 📖 Detailed Guides
 
-1. Go to the **Dashboard** tab
-2. Click "Start Server"
-3. The server will start and be available to players
+- **[Quick Start Guide](QUICK_START.md)** - Complete setup instructions
+- **[Windows Setup](QUICK_START_WINDOWS.md)** - Windows-specific instructions
+- **[macOS Setup](QUICK_START_MAC.md)** - macOS-specific instructions
+- **[Linux Setup](QUICK_START_LINUX.md)** - Linux-specific instructions
 
-## How Distributed Hosting Works
+## 🎯 What's New
 
-### Network Architecture
+### Enhanced Forge Detection
+- **Smart Installation Detection** - Only shows Forge as "installed" when properly configured
+- **Real-time Status Monitoring** - Live updates of server and Forge status
+- **Issue Detection** - Automatically identifies and reports setup problems
+- **Java Compatibility Checking** - Ensures your Java version works with Forge
 
-- **Network Manager**: Coordinates between host computers (port 25566)
-- **Host Clients**: Each computer runs a client that connects to the network
-- **Server Manager**: Manages the actual Minecraft server process
-- **Failover System**: Automatically switches to available hosts
+### Improved User Experience
+- **Progress Tracking** - Real-time installation progress with visual indicators
+- **Error Handling** - Better error messages and troubleshooting guidance
+- **Status Validation** - Distinguishes between web interface status and actual server process
+- **Auto-refresh** - Dashboard updates automatically every 30 seconds
 
-### Host Computer Setup
+## 🛠️ System Requirements
 
-1. **Primary Host**: The first computer to start hosting
-2. **Backup Hosts**: Additional computers that can take over
-3. **Automatic Detection**: System detects when a host goes offline
-4. **Seamless Transfer**: Players can continue playing without interruption
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| **Python** | 3.8+ | 3.11+ |
+| **Java** | 21+ | 21+ |
+| **RAM** | 4GB | 8GB+ |
+| **Storage** | 2GB | 10GB+ |
+| **OS** | Windows 10, macOS 10.15, Ubuntu 20.04 | Latest versions |
 
-### Adding Friends' Computers
+## 🔧 Configuration
 
-1. Share the application with your friends
-2. They install it on their computers
-3. They join your hosting network using your IP address
-4. Their computers become available for failover
+MCUS uses a simple JSON configuration file (`config.json`) that's created automatically. Key settings:
 
-## Configuration
+```json
+{
+  "server_name": "MCUS Server",
+  "max_players": 20,
+  "port": 25565,
+  "minecraft_version": "1.21.7",
+  "mod_loader": "forge",
+  "java_memory": "4G",
+  "auto_backup": true,
+  "backup_interval": 3600
+}
+```
 
-### Server Settings
-
-- **Server Name**: Display name for the server
-- **Max Players**: Maximum number of players allowed
-- **Port**: Minecraft server port (default: 25565)
-- **World Name**: Name of the world folder
-- **Network Port**: Port for host communication (default: 25566)
-
-### Advanced Settings
-
-- **CurseForge API Key**: For downloading mods directly (optional)
-- **Memory Allocation**: Adjust server memory usage
-- **Backup Schedule**: Configure automatic backups
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Server won't start**
-   - Check if Java is installed
-   - Verify Forge is installed
-   - Check server logs
-
-2. **Can't connect to network**
-   - Verify firewall settings
-   - Check network port availability
-   - Ensure all computers are on the same network
-
-3. **Mods not working**
-   - Verify mod compatibility with Minecraft version
-   - Check if Forge is installed
-   - Restart server after mod installation
-
-### Logs
-
-- Server logs are saved in `server.log`
-- Application logs show in the console
-- Check logs for detailed error information
-
-## File Structure
+## 📁 Project Structure
 
 ```
 MCUS/
-├── src/
-│   ├── main.py              # Main application
-│   ├── server_manager.py    # Server management
-│   ├── mod_manager.py       # Mod management
-│   └── network_manager.py   # Network communication
-├── server/                  # Minecraft server files
-│   ├── mods/               # Installed mods
-│   ├── world/              # World data
-│   └── backups/            # World backups
-├── requirements.txt         # Python dependencies
-├── README.md               # This file
-└── start_mcus.bat          # Windows shortcut
+├── src/                    # Core application code
+│   ├── server_manager.py   # Server management logic
+│   ├── mod_manager.py      # Mod installation and management
+│   └── network_manager.py  # Multi-host networking
+├── templates/              # Web interface templates
+├── server/                 # Minecraft server files
+├── logs/                   # Application logs
+├── web_app.py             # Web interface server
+├── setup.py               # Setup script
+├── requirements.txt       # Python dependencies
+└── README.md             # This file
 ```
 
-## Contributing
+## 🎮 Supported Minecraft Versions
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+- **Minecraft 1.21.x** - Full support with Forge
+- **Minecraft 1.20.x** - Full support with Forge
+- **Minecraft 1.19.x** - Full support with Forge
+- **Minecraft 1.18.x** - Full support with Forge
 
-## License
+## 🔗 Modrinth Integration
 
-This project is open source and available under the MIT License.
+MCUS includes full integration with Modrinth, allowing you to:
+- Browse thousands of mods
+- Search by name, category, or tags
+- Install mods with one click
+- Manage mod dependencies automatically
+- View mod popularity and ratings
 
-## Support
+## 🚨 Troubleshooting
 
-For support and questions:
-- Check the troubleshooting section
-- Review the logs for error details
-- Create an issue on the repository
+### Common Issues
 
-## Credits
+1. **"Java not found"**
+   - Install Java 21+ and ensure it's in your PATH
+   - See platform-specific guides for installation instructions
 
-- Minecraft Forge team for the modding platform
-- CurseForge for mod hosting
-- Python community for the libraries used
+2. **"Forge installation failed"**
+   - Check your internet connection
+   - Ensure you have sufficient disk space
+   - Try running the diagnostics tool in the web interface
+
+3. **"Server won't start"**
+   - Check the server logs in the web interface
+   - Ensure no other service is using port 25565
+   - Verify Java compatibility with your Forge version
+
+4. **"Web interface not loading"**
+   - Ensure port 3000 is not in use
+   - Check if the web app is running
+   - Try accessing http://127.0.0.1:3000 instead
+
+### Getting Help
+
+- 📖 Check the [Quick Start Guide](QUICK_START.md)
+- 🔍 Use the built-in [System Diagnostics](http://localhost:3000/diagnostics)
+- 🐛 Check the logs in the `logs/` directory
+- 💬 Open an issue on GitHub
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our contributing guidelines and feel free to submit pull requests.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- **Minecraft Forge** - For the amazing modding platform
+- **Modrinth** - For the comprehensive mod database
+- **Flask** - For the web framework
+- **The Minecraft Community** - For inspiration and feedback
 
 ---
 
-**Note**: This application is designed for personal use and small groups. For large-scale hosting, consider professional hosting services. 
+**Made with ❤️ for the Minecraft community**
+
+*MCUS - Making Minecraft server management simple and powerful* 

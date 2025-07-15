@@ -3,6 +3,9 @@
 {% block title %}Dashboard - MCUS{% endblock %}
 
 {% block content %}
+<!-- Update Notification Area -->
+<div id="update-notification-area"></div>
+
 <div class="row">
     <div class="col-md-8">
         <div class="card mb-4">
@@ -12,42 +15,58 @@
                 </h5>
             </div>
             <div class="card-body">
+                <!-- Forge Status Section -->
+                <div id="forge-status-section" class="mb-3" style="display: none;">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle me-2"></i>Forge Status</h6>
+                        <div id="forge-status-details">
+                            <div class="spinner-border spinner-border-sm" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <span class="ms-2">Checking Forge installation...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Server Status Section -->
                 <div class="row">
                     <div class="col-md-6">
                         <h6>Status</h6>
                         <p class="status-{{ 'online' if server_status.running else 'offline' }}">
                             <i class="fas fa-circle me-2"></i>
-                            {{ 'Online' if server_status.running else 'Offline' }}
+                            <span id="server-status-text">{{ 'Online' if server_status.running else 'Offline' }}</span>
                         </p>
                     </div>
                     <div class="col-md-6">
                         <h6>Memory Usage</h6>
-                        <p>{{ "%.1f"|format(server_status.memory_usage) }} MB</p>
+                        <p id="memory-usage">{{ "%.1f"|format(server_status.memory_usage) }} MB</p>
                     </div>
                 </div>
                 <div class="row mt-3">
                     <div class="col-md-6">
                         <h6>Players Online</h6>
-                        <p>{{ server_status.players_online|length }}/20</p>
+                        <p id="players-online">{{ server_status.players_online|length }}/20</p>
                     </div>
                     <div class="col-md-6">
                         <h6>Uptime</h6>
-                        <p>{{ server_status.uptime }} seconds</p>
+                        <p id="uptime">{{ server_status.uptime }} seconds</p>
                     </div>
                 </div>
                 <div class="mt-3">
-                    {% if server_status.running %}
-                        <a href="/stop_server" class="btn btn-danger">
-                            <i class="fas fa-stop me-2"></i>Stop Server
-                        </a>
-                    {% else %}
-                        <a href="/start_server" class="btn btn-success">
-                            <i class="fas fa-play me-2"></i>Start Server
-                        </a>
-                        <a href="/select_forge_version" class="btn btn-warning">
-                            <i class="fas fa-download me-2"></i>Install Forge
-                        </a>
-                    {% endif %}
+                    <div id="server-actions">
+                        {% if server_status.running %}
+                            <a href="/stop_server" class="btn btn-danger">
+                                <i class="fas fa-stop me-2"></i>Stop Server
+                            </a>
+                        {% else %}
+                            <a href="/start_server" class="btn btn-success" id="start-server-btn">
+                                <i class="fas fa-play me-2"></i>Start Server
+                            </a>
+                            <a href="/select_forge_version" class="btn btn-warning">
+                                <i class="fas fa-download me-2"></i>Install Forge
+                            </a>
+                        {% endif %}
+                    </div>
                     <a href="/backup_world" class="btn btn-primary">
                         <i class="fas fa-download me-2"></i>Backup World
                     </a>
@@ -163,9 +182,145 @@
                             <i class="fas fa-stethoscope me-2"></i>System Diagnostics
                         </a>
                     </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="/share_mcus" class="btn btn-outline-success w-100">
+                            <i class="fas fa-share-alt me-2"></i>Share with Friends
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="/create_shortcut" class="btn btn-outline-info w-100">
+                            <i class="fas fa-desktop me-2"></i>Create Shortcut
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+// Function to check Forge status
+function checkForgeStatus() {
+    fetch('/api/forge/status')
+        .then(response => response.json())
+        .then(data => {
+            const forgeSection = document.getElementById('forge-status-section');
+            const forgeDetails = document.getElementById('forge-status-details');
+            
+            if (data.installed) {
+                forgeSection.style.display = 'block';
+                
+                let statusHtml = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Version:</strong> ${data.version}<br>
+                            <strong>Java Compatible:</strong> 
+                            <span class="text-${data.java_compatible ? 'success' : 'danger'}">
+                                ${data.java_compatible ? '✓ Yes' : '✗ No'}
+                            </span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Startup Files:</strong> 
+                            <span class="text-${data.startup_files_ready ? 'success' : 'danger'}">
+                                ${data.startup_files_ready ? '✓ Ready' : '✗ Missing'}
+                            </span>
+                        </div>
+                    </div>
+                    ${data.server_jar_location ? `
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <strong>Server JAR Location:</strong><br>
+                            <small class="text-muted">${data.server_jar_location}</small>
+                        </div>
+                    </div>
+                    ` : ''}
+                `;
+                
+                if (data.issues && data.issues.length > 0) {
+                    statusHtml += `
+                        <div class="mt-2">
+                            <strong>Issues:</strong>
+                            <ul class="mb-0 mt-1">
+                                ${data.issues.map(issue => `<li class="text-danger">${issue}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+                
+                forgeDetails.innerHTML = statusHtml;
+            } else {
+                forgeSection.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking Forge status:', error);
+        });
+}
+
+// Function to check detailed server status
+function checkDetailedStatus() {
+    fetch('/api/server/detailed_status')
+        .then(response => response.json())
+        .then(data => {
+            const statusText = document.getElementById('server-status-text');
+            const startBtn = document.getElementById('start-server-btn');
+            
+            if (data.actual_running) {
+                statusText.textContent = 'Online (Running)';
+                if (startBtn) {
+                    startBtn.textContent = 'Server Already Running';
+                    startBtn.classList.remove('btn-success');
+                    startBtn.classList.add('btn-secondary');
+                    startBtn.disabled = true;
+                }
+            } else {
+                statusText.textContent = 'Offline';
+                if (startBtn) {
+                    startBtn.textContent = 'Start Server';
+                    startBtn.classList.remove('btn-secondary');
+                    startBtn.classList.add('btn-success');
+                    startBtn.disabled = false;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error checking detailed status:', error);
+        });
+}
+
+// Function to check for updates
+function checkForUpdates() {
+    fetch('/api/updates/notification')
+        .then(response => response.json())
+        .then(data => {
+            const notificationArea = document.getElementById('update-notification-area');
+            if (data.html) {
+                notificationArea.innerHTML = data.html;
+            } else {
+                notificationArea.innerHTML = '';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking for updates:', error);
+        });
+}
+
+// Check status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkForgeStatus();
+    checkDetailedStatus();
+    checkForUpdates();
+    
+    // Refresh status every 30 seconds
+    setInterval(() => {
+        checkForgeStatus();
+        checkDetailedStatus();
+    }, 30000);
+    
+    // Check for updates every hour
+    setInterval(() => {
+        checkForUpdates();
+    }, 3600000);
+});
+</script>
 {% endblock %} 

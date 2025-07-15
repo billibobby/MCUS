@@ -1,129 +1,193 @@
 {% extends "base.html" %}
 
-{% block title %}System Diagnostics - MCUS{% endblock %}
+{% block title %}MCUS Diagnostics{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <!-- Header Section -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-primary">
-                <div class="card-header bg-primary text-white">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h3 class="mb-0">
-                            <i class="fas fa-stethoscope me-2"></i>System Diagnostics
-                        </h3>
-                        <div>
-                            <a href="{{ url_for('fix_permissions') }}" class="btn btn-warning btn-sm">
-                                <i class="fas fa-wrench me-1"></i>Fix Permissions
-                            </a>
-                            <a href="{{ url_for('dashboard') }}" class="btn btn-light btn-sm">
-                                <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
-                            </a>
-                        </div>
-                    </div>
+<div class="container mt-4">
+    <h1 class="mb-4">
+        <i class="fas fa-stethoscope"></i>
+        MCUS Diagnostics & Troubleshooting
+    </h1>
+
+    <!-- System Information -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-info-circle"></i>
+                System Information
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Python Version:</strong> <span id="python-version">Checking...</span></p>
+                    <p><strong>Java Version:</strong> <span id="java-version">Checking...</span></p>
+                    <p><strong>Available Memory:</strong> <span id="memory-info">Checking...</span></p>
                 </div>
-                <div class="card-body">
-                    <p class="mb-2">
-                        <strong>Comprehensive system diagnostics to help identify and resolve server startup issues.</strong>
-                        This page shows detailed information about your system configuration and common problems.
-                    </p>
+                <div class="col-md-6">
+                    <p><strong>Operating System:</strong> <span id="os-info">Checking...</span></p>
+                    <p><strong>Disk Space:</strong> <span id="disk-space">Checking...</span></p>
+                    <p><strong>Network Status:</strong> <span id="network-status">Checking...</span></p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- System Requirements Check -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-info">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-check-circle me-2"></i>System Requirements Check
-                    </h5>
+    <!-- Quick Diagnostics -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-tools"></i>
+                Quick Diagnostics
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <button class="btn btn-primary mb-2 w-100" onclick="runDiagnostic('java')">
+                        <i class="fas fa-coffee"></i> Check Java Installation
+                    </button>
+                    <button class="btn btn-primary mb-2 w-100" onclick="runDiagnostic('forge')">
+                        <i class="fas fa-cog"></i> Check Forge Installation
+                    </button>
+                    <button class="btn btn-primary mb-2 w-100" onclick="runDiagnostic('network')">
+                        <i class="fas fa-wifi"></i> Test Network Connectivity
+                    </button>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Required Components:</h6>
-                            <div class="requirement-item">
-                                <i class="fas fa-{% if diagnostics.java_available %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
-                                <strong>Java Installation:</strong>
-                                {% if diagnostics.java_available %}
-                                    <span class="text-success">{{ system_info.java_version or 'Available' }}</span>
-                                {% else %}
-                                    <span class="text-danger">Not found</span>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="requirement-item">
-                                <i class="fas fa-{% if diagnostics.server_directory %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
-                                <strong>Server Directory:</strong>
-                                {% if diagnostics.server_directory %}
-                                    <span class="text-success">Exists</span>
-                                {% else %}
-                                    <span class="text-danger">Missing</span>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="requirement-item">
-                                <i class="fas fa-{% if diagnostics.permissions %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
-                                <strong>Write Permissions:</strong>
-                                {% if diagnostics.permissions %}
-                                    <span class="text-success">OK</span>
-                                {% else %}
-                                    <span class="text-danger">No permission</span>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="requirement-item">
-                                <i class="fas fa-{% if diagnostics.server_jar %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
-                                <strong>Forge Server JAR:</strong>
-                                {% if diagnostics.server_jar %}
-                                    <span class="text-success">Found</span>
-                                {% else %}
-                                    <span class="text-danger">Not found</span>
-                                {% endif %}
-                            </div>
+                <div class="col-md-6">
+                    <button class="btn btn-primary mb-2 w-100" onclick="runDiagnostic('server')">
+                        <i class="fas fa-server"></i> Check Server Files
+                    </button>
+                    <button class="btn btn-primary mb-2 w-100" onclick="runDiagnostic('mods')">
+                        <i class="fas fa-puzzle-piece"></i> Check Mods Directory
+                    </button>
+                    <button class="btn btn-primary mb-2 w-100" onclick="runDiagnostic('all')">
+                        <i class="fas fa-play"></i> Run All Diagnostics
+                    </button>
+                </div>
+            </div>
+            <div id="diagnostic-results" class="mt-3"></div>
+        </div>
+    </div>
+
+    <!-- Common Issues -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-exclamation-triangle"></i>
+                Common Issues & Solutions
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="accordion" id="issuesAccordion">
+                <!-- Forge Installation Issues -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingForge">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseForge">
+                            <i class="fas fa-cog text-warning me-2"></i>
+                            Forge Installation Issues
+                        </button>
+                    </h2>
+                    <div id="collapseForge" class="accordion-collapse collapse" data-bs-parent="#issuesAccordion">
+                        <div class="accordion-body">
+                            <h6>Common Problems:</h6>
+                            <ul>
+                                <li><strong>Forge installer fails to download:</strong> Check your internet connection and firewall settings</li>
+                                <li><strong>Java not found:</strong> Install Java 8 or higher and ensure it's in your PATH</li>
+                                <li><strong>Permission denied:</strong> Run MCUS with administrator privileges</li>
+                                <li><strong>Corrupted download:</strong> Clear browser cache and try again</li>
+                            </ul>
+                            <h6>Solutions:</h6>
+                            <ol>
+                                <li>Ensure Java 8+ is installed: <code>java -version</code></li>
+                                <li>Check internet connectivity</li>
+                                <li>Try running as administrator</li>
+                                <li>Clear temporary files and retry</li>
+                            </ol>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <h6>System Resources:</h6>
-                            <div class="requirement-item">
-                                <i class="fas fa-{% if diagnostics.memory_available %}check text-success{% else %}exclamation-triangle text-warning{% endif %} me-2"></i>
-                                <strong>Available Memory:</strong>
-                                {% if system_info.memory_available %}
-                                    <span class="{% if diagnostics.memory_available %}text-success{% else %}text-warning{% endif %}">
-                                        {{ system_info.memory_available }} ({{ system_info.memory_total }} total)
-                                    </span>
-                                {% else %}
-                                    <span class="text-muted">Unknown</span>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="requirement-item">
-                                <i class="fas fa-{% if diagnostics.disk_space %}check text-success{% else %}exclamation-triangle text-warning{% endif %} me-2"></i>
-                                <strong>Disk Space:</strong>
-                                {% if system_info.disk_free %}
-                                    <span class="{% if diagnostics.disk_space %}text-success{% else %}text-warning{% endif %}">
-                                        {{ system_info.disk_free }} free ({{ system_info.disk_total }} total)
-                                    </span>
-                                {% else %}
-                                    <span class="text-muted">Unknown</span>
-                                {% endif %}
-                            </div>
-                            
-                            <div class="requirement-item">
-                                <i class="fas fa-info-circle text-info me-2"></i>
-                                <strong>Platform:</strong>
-                                <span class="text-info">{{ system_info.platform }}</span>
-                            </div>
-                            
-                            <div class="requirement-item">
-                                <i class="fas fa-info-circle text-info me-2"></i>
-                                <strong>Python Version:</strong>
-                                <span class="text-info">{{ system_info.python_version.split()[0] }}</span>
-                            </div>
+                    </div>
+                </div>
+
+                <!-- Server Startup Issues -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingServer">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseServer">
+                            <i class="fas fa-server text-danger me-2"></i>
+                            Server Startup Issues
+                        </button>
+                    </h2>
+                    <div id="collapseServer" class="accordion-collapse collapse" data-bs-parent="#issuesAccordion">
+                        <div class="accordion-body">
+                            <h6>Common Problems:</h6>
+                            <ul>
+                                <li><strong>Server won't start:</strong> Check server logs for errors</li>
+                                <li><strong>Out of memory:</strong> Increase allocated RAM</li>
+                                <li><strong>Port already in use:</strong> Change server port or stop conflicting services</li>
+                                <li><strong>Missing dependencies:</strong> Install required mods or libraries</li>
+                            </ul>
+                            <h6>Solutions:</h6>
+                            <ol>
+                                <li>Check server logs in the <code>logs/</code> directory</li>
+                                <li>Increase RAM allocation in server settings</li>
+                                <li>Use a different port (default: 25565)</li>
+                                <li>Verify all mod dependencies are installed</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mod Issues -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingMods">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseMods">
+                            <i class="fas fa-puzzle-piece text-info me-2"></i>
+                            Mod Installation Issues
+                        </button>
+                    </h2>
+                    <div id="collapseMods" class="accordion-collapse collapse" data-bs-parent="#issuesAccordion">
+                        <div class="accordion-body">
+                            <h6>Common Problems:</h6>
+                            <ul>
+                                <li><strong>Mods not loading:</strong> Check compatibility with Minecraft/Forge version</li>
+                                <li><strong>Missing dependencies:</strong> Install required library mods</li>
+                                <li><strong>Conflicting mods:</strong> Remove incompatible mods</li>
+                                <li><strong>Corrupted mod files:</strong> Re-download the mod</li>
+                            </ul>
+                            <h6>Solutions:</h6>
+                            <ol>
+                                <li>Verify mod compatibility with your Minecraft version</li>
+                                <li>Install all required dependencies (e.g., JEI, Forge Config API)</li>
+                                <li>Test mods one by one to identify conflicts</li>
+                                <li>Download mods from official sources only</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Issues -->
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="headingNetwork">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNetwork">
+                            <i class="fas fa-wifi text-success me-2"></i>
+                            Network & Connectivity Issues
+                        </button>
+                    </h2>
+                    <div id="collapseNetwork" class="accordion-collapse collapse" data-bs-parent="#issuesAccordion">
+                        <div class="accordion-body">
+                            <h6>Common Problems:</h6>
+                            <ul>
+                                <li><strong>Can't connect to server:</strong> Check firewall and port forwarding</li>
+                                <li><strong>Slow downloads:</strong> Check internet speed and server location</li>
+                                <li><strong>Connection timeouts:</strong> Verify server is running and accessible</li>
+                                <li><strong>Port blocked:</strong> Configure router port forwarding</li>
+                            </ul>
+                            <h6>Solutions:</h6>
+                            <ol>
+                                <li>Configure firewall to allow Minecraft traffic</li>
+                                <li>Set up port forwarding for port 25565</li>
+                                <li>Use a static IP address for your server</li>
+                                <li>Check with your ISP for any restrictions</li>
+                            </ol>
                         </div>
                     </div>
                 </div>
@@ -131,196 +195,81 @@
         </div>
     </div>
 
-    <!-- Detailed System Information -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card border-secondary">
-                <div class="card-header bg-secondary text-white">
-                    <h6 class="mb-0">
-                        <i class="fas fa-info-circle me-2"></i>System Information
-                    </h6>
+    <!-- Log Viewer -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-file-alt"></i>
+                Log Viewer
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <select id="log-select" class="form-select">
+                        <option value="server.log">Server Log</option>
+                        <option value="mcus.log">MCUS Log</option>
+                        <option value="forge-installer.log">Forge Installer Log</option>
+                    </select>
                 </div>
-                <div class="card-body">
-                    <table class="table table-sm">
-                        <tr>
-                            <td><strong>Current Directory:</strong></td>
-                            <td><code>{{ system_info.current_directory }}</code></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Server Directory:</strong></td>
-                            <td><code>{{ system_info.server_directory }}</code></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Server Directory Exists:</strong></td>
-                            <td>
-                                <span class="badge bg-{% if system_info.server_directory_exists %}success{% else %}danger{% endif %}">
-                                    {{ system_info.server_directory_exists }}
-                                </span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Server Directory Writable:</strong></td>
-                            <td>
-                                <span class="badge bg-{% if system_info.server_directory_writable %}success{% else %}danger{% endif %}">
-                                    {{ system_info.server_directory_writable }}
-                                </span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Java Path:</strong></td>
-                            <td><code>{{ system_info.java_path or 'Not found' }}</code></td>
-                        </tr>
-                        <tr>
-                            <td><strong>Java Version:</strong></td>
-                            <td><code>{{ system_info.java_version or 'Unknown' }}</code></td>
-                        </tr>
-                    </table>
+                <div class="col-md-6">
+                    <button class="btn btn-secondary" onclick="refreshLog()">
+                        <i class="fas fa-sync"></i> Refresh Log
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="downloadLog()">
+                        <i class="fas fa-download"></i> Download
+                    </button>
                 </div>
             </div>
-        </div>
-        
-        <div class="col-md-6">
-            <div class="card border-secondary">
-                <div class="card-header bg-secondary text-white">
-                    <h6 class="mb-0">
-                        <i class="fas fa-chart-bar me-2"></i>Resource Usage
-                    </h6>
-                </div>
-                <div class="card-body">
-                    {% if system_info.memory_total %}
-                    <div class="mb-3">
-                        <h6>Memory Usage:</h6>
-                        <div class="progress mb-2">
-                            {% set memory_used = ((system_info.memory_total | replace('GB', '') | int) - (system_info.memory_available | replace('GB', '') | int)) %}
-                            {% set memory_percent = (memory_used / (system_info.memory_total | replace('GB', '') | int) * 100) | int %}
-                            <div class="progress-bar bg-{% if memory_percent > 80 %}danger{% elif memory_percent > 60 %}warning{% else %}success{% endif %}" 
-                                 style="width: {{ memory_percent }}%">
-                                {{ memory_percent }}%
-                            </div>
-                        </div>
-                        <small class="text-muted">
-                            {{ system_info.memory_available }} available of {{ system_info.memory_total }} total
-                        </small>
-                    </div>
-                    {% endif %}
-                    
-                    {% if system_info.disk_total %}
-                    <div class="mb-3">
-                        <h6>Disk Usage:</h6>
-                        <div class="progress mb-2">
-                            {% set disk_used = ((system_info.disk_total | replace('GB', '') | int) - (system_info.disk_free | replace('GB', '') | int)) %}
-                            {% set disk_percent = (disk_used / (system_info.disk_total | replace('GB', '') | int) * 100) | int %}
-                            <div class="progress-bar bg-{% if disk_percent > 90 %}danger{% elif disk_percent > 80 %}warning{% else %}success{% endif %}" 
-                                 style="width: {{ disk_percent }}%">
-                                {{ disk_percent }}%
-                            </div>
-                        </div>
-                        <small class="text-muted">
-                            {{ system_info.disk_free }} free of {{ system_info.disk_total }} total
-                        </small>
-                    </div>
-                    {% endif %}
-                    
-                    {% if not system_info.memory_total %}
-                    <div class="text-muted">
-                        <i class="fas fa-info-circle me-1"></i>
-                        Resource information unavailable (psutil not installed)
-                    </div>
-                    {% endif %}
-                </div>
+            <div class="log-container">
+                <pre id="log-content" class="log-text"></pre>
             </div>
         </div>
     </div>
 
-    <!-- Troubleshooting Guide -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card border-warning">
-                <div class="card-header bg-warning text-dark">
-                    <h5 class="mb-0">
-                        <i class="fas fa-question-circle me-2"></i>Troubleshooting Guide
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Common Issues & Solutions:</h6>
-                            
-                            {% if not diagnostics.java_available %}
-                            <div class="alert alert-danger">
-                                <strong>Java Not Found:</strong>
-                                <ul class="mb-0 mt-2">
-                                    <li>Download and install Java 8 or higher from <a href="https://adoptium.net" target="_blank">adoptium.net</a></li>
-                                    <li>Make sure Java is added to your system PATH</li>
-                                    <li>Restart your computer after installation</li>
-                                </ul>
-                            </div>
-                            {% endif %}
-                            
-                            {% if not diagnostics.permissions %}
-                            <div class="alert alert-warning">
-                                <strong>Permission Issues:</strong>
-                                <ul class="mb-0 mt-2">
-                                    <li>Run MCUS as administrator (Windows)</li>
-                                    <li>Check folder permissions in the server directory</li>
-                                    <li>Try the "Fix Permissions" button above</li>
-                                </ul>
-                            </div>
-                            {% endif %}
-                            
-                            {% if not diagnostics.server_jar %}
-                            <div class="alert alert-info">
-                                <strong>No Forge Server JAR:</strong>
-                                <ul class="mb-0 mt-2">
-                                    <li>Go to the Mods page and install Forge first</li>
-                                    <li>Choose a compatible Minecraft version</li>
-                                    <li>Wait for the installation to complete</li>
-                                </ul>
-                            </div>
-                            {% endif %}
-                            
-                            {% if not diagnostics.memory_available %}
-                            <div class="alert alert-warning">
-                                <strong>Insufficient Memory:</strong>
-                                <ul class="mb-0 mt-2">
-                                    <li>Close other applications to free up RAM</li>
-                                    <li>Consider upgrading your system memory</li>
-                                    <li>Use fewer mods to reduce memory usage</li>
-                                </ul>
-                            </div>
-                            {% endif %}
+    <!-- System Health -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-heartbeat"></i>
+                System Health
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="health-indicator" id="cpu-health">
+                            <i class="fas fa-microchip fa-2x"></i>
+                            <p>CPU Usage</p>
+                            <span id="cpu-usage">--</span>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <h6>Quick Actions:</h6>
-                            
-                            <div class="d-grid gap-2">
-                                <a href="{{ url_for('fix_permissions') }}" class="btn btn-warning">
-                                    <i class="fas fa-wrench me-2"></i>Fix Permissions
-                                </a>
-                                
-                                <a href="{{ url_for('select_forge_version') }}" class="btn btn-primary">
-                                    <i class="fas fa-download me-2"></i>Install Forge
-                                </a>
-                                
-                                <a href="{{ url_for('mods') }}" class="btn btn-info">
-                                    <i class="fas fa-puzzle-piece me-2"></i>Manage Mods
-                                </a>
-                                
-                                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
-                                    <i class="fas fa-home me-2"></i>Back to Dashboard
-                                </a>
-                            </div>
-                            
-                            <div class="mt-3">
-                                <h6>System Requirements:</h6>
-                                <ul class="small">
-                                    <li><strong>Java:</strong> Version 8 or higher</li>
-                                    <li><strong>Memory:</strong> 2GB+ available RAM</li>
-                                    <li><strong>Disk:</strong> 1GB+ free space</li>
-                                    <li><strong>OS:</strong> Windows, macOS, or Linux</li>
-                                </ul>
-                            </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="health-indicator" id="memory-health">
+                            <i class="fas fa-memory fa-2x"></i>
+                            <p>Memory Usage</p>
+                            <span id="memory-usage">--</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="health-indicator" id="disk-health">
+                            <i class="fas fa-hdd fa-2x"></i>
+                            <p>Disk Usage</p>
+                            <span id="disk-usage">--</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="health-indicator" id="network-health">
+                            <i class="fas fa-network-wired fa-2x"></i>
+                            <p>Network</p>
+                            <span id="network-status-indicator">--</span>
                         </div>
                     </div>
                 </div>
@@ -330,22 +279,188 @@
 </div>
 
 <style>
-.requirement-item {
-    margin-bottom: 10px;
-    padding: 5px 0;
+.health-indicator {
+    padding: 15px;
+    border-radius: 8px;
+    background: #f8f9fa;
+    margin-bottom: 15px;
 }
 
-.requirement-item i {
-    width: 20px;
+.health-indicator.healthy {
+    background: #d4edda;
+    color: #155724;
 }
 
-.progress {
-    height: 20px;
+.health-indicator.warning {
+    background: #fff3cd;
+    color: #856404;
 }
 
-.progress-bar {
-    line-height: 20px;
+.health-indicator.critical {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.log-container {
+    background: #1e1e1e;
+    border-radius: 5px;
+    padding: 15px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.log-text {
+    color: #ffffff;
+    font-family: 'Courier New', monospace;
     font-size: 12px;
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+.diagnostic-result {
+    margin: 10px 0;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.diagnostic-result.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.diagnostic-result.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.diagnostic-result.warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
 }
 </style>
+
+<script>
+// Load system information on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadSystemInfo();
+    refreshLog();
+    updateSystemHealth();
+    
+    // Update system health every 30 seconds
+    setInterval(updateSystemHealth, 30000);
+});
+
+function loadSystemInfo() {
+    fetch('/api/diagnostics/system-info')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('python-version').textContent = data.python_version || 'Unknown';
+            document.getElementById('java-version').textContent = data.java_version || 'Not found';
+            document.getElementById('memory-info').textContent = data.memory_info || 'Unknown';
+            document.getElementById('os-info').textContent = data.os_info || 'Unknown';
+            document.getElementById('disk-space').textContent = data.disk_space || 'Unknown';
+            document.getElementById('network-status').textContent = data.network_status || 'Unknown';
+        })
+        .catch(error => {
+            console.error('Error loading system info:', error);
+        });
+}
+
+function runDiagnostic(type) {
+    const resultsDiv = document.getElementById('diagnostic-results');
+    resultsDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Running diagnostics...</div>';
+    
+    fetch(`/api/diagnostics/run/${type}`)
+        .then(response => response.json())
+        .then(data => {
+            displayDiagnosticResults(data);
+        })
+        .catch(error => {
+            resultsDiv.innerHTML = `<div class="diagnostic-result error">Error running diagnostics: ${error.message}</div>`;
+        });
+}
+
+function displayDiagnosticResults(results) {
+    const resultsDiv = document.getElementById('diagnostic-results');
+    resultsDiv.innerHTML = '';
+    
+    results.forEach(result => {
+        const resultDiv = document.createElement('div');
+        resultDiv.className = `diagnostic-result ${result.status}`;
+        resultDiv.innerHTML = `
+            <strong>${result.name}:</strong> ${result.message}
+            ${result.details ? `<br><small>${result.details}</small>` : ''}
+        `;
+        resultsDiv.appendChild(resultDiv);
+    });
+}
+
+function refreshLog() {
+    const logSelect = document.getElementById('log-select');
+    const logContent = document.getElementById('log-content');
+    
+    fetch(`/api/diagnostics/logs/${logSelect.value}`)
+        .then(response => response.text())
+        .then(data => {
+            logContent.textContent = data;
+            logContent.scrollTop = logContent.scrollHeight;
+        })
+        .catch(error => {
+            logContent.textContent = `Error loading log: ${error.message}`;
+        });
+}
+
+function downloadLog() {
+    const logSelect = document.getElementById('log-select');
+    window.open(`/api/diagnostics/logs/${logSelect.value}/download`, '_blank');
+}
+
+function updateSystemHealth() {
+    fetch('/api/diagnostics/system-health')
+        .then(response => response.json())
+        .then(data => {
+            updateHealthIndicator('cpu', data.cpu_usage);
+            updateHealthIndicator('memory', data.memory_usage);
+            updateHealthIndicator('disk', data.disk_usage);
+            updateHealthIndicator('network', data.network_status);
+        })
+        .catch(error => {
+            console.error('Error updating system health:', error);
+        });
+}
+
+function updateHealthIndicator(type, value) {
+    const element = document.getElementById(`${type}-usage`);
+    const indicator = document.getElementById(`${type}-health`);
+    
+    if (element) {
+        element.textContent = value;
+    }
+    
+    if (indicator) {
+        indicator.className = 'health-indicator';
+        
+        if (type === 'cpu' || type === 'memory' || type === 'disk') {
+            const numValue = parseFloat(value);
+            if (numValue < 70) {
+                indicator.classList.add('healthy');
+            } else if (numValue < 90) {
+                indicator.classList.add('warning');
+            } else {
+                indicator.classList.add('critical');
+            }
+        } else {
+            // Network status
+            if (value === 'Connected') {
+                indicator.classList.add('healthy');
+            } else {
+                indicator.classList.add('critical');
+            }
+        }
+    }
+}
+</script>
 {% endblock %} 

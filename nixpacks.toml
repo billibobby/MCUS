@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["python39", "openjdk21"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["python setup.py"]
+
+[start]
+cmd = "python web_app.py --port $PORT" 

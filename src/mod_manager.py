@@ -104,8 +104,8 @@ class ModManager:
             logging.error(f"Failed to disable mod: {e}")
             return False
             
-    def search_modrinth_mods(self, query: str, limit: int = 20) -> List[Dict]:
-        """Search for mods on Modrinth"""
+    def search_modrinth_mods(self, query: str, limit: int = 50) -> List[Dict]:
+        """Search for mods on Modrinth with improved error handling and more results"""
         try:
             # Modrinth API endpoint
             search_url = "https://api.modrinth.com/v2/search"
@@ -115,10 +115,11 @@ class ModManager:
                     [f"versions:{self.mc_version}"],
                     [f"loader:{self.loader}"]
                 ]),
-                'limit': limit
+                'limit': limit,
+                'sort_by': 'relevance'
             }
             
-            response = requests.get(search_url, params=params)
+            response = requests.get(search_url, params=params, timeout=30)
             response.raise_for_status()
             
             data = response.json()
@@ -132,14 +133,26 @@ class ModManager:
                     'downloads': hit.get('downloads', 0),
                     'followers': hit.get('followers', 0),
                     'author': hit.get('author', 'Unknown'),
-                    'categories': hit.get('categories', [])
+                    'categories': hit.get('categories', []),
+                    'icon_url': hit.get('icon_url'),
+                    'project_type': hit.get('project_type', 'mod'),
+                    'client_side': hit.get('client_side', 'unknown'),
+                    'server_side': hit.get('server_side', 'unknown'),
+                    'date_created': hit.get('date_created'),
+                    'date_modified': hit.get('date_modified')
                 }
                 mods.append(mod_info)
                 
             return mods
             
-        except Exception as e:
+        except requests.exceptions.Timeout:
+            logging.error("Modrinth search timed out")
+            return []
+        except requests.exceptions.RequestException as e:
             logging.error(f"Failed to search Modrinth: {e}")
+            return []
+        except Exception as e:
+            logging.error(f"Unexpected error searching Modrinth: {e}")
             return []
             
     def get_latest_modrinth_version(self, project_id: str) -> Optional[Dict]:
@@ -209,8 +222,8 @@ class ModManager:
             logging.error(f"Failed to download mod: {e}")
             return False
             
-    def get_popular_modrinth_mods(self, limit: int = 30) -> List[Dict]:
-        """Get popular mods from Modrinth"""
+    def get_popular_modrinth_mods(self, limit: int = 100) -> List[Dict]:
+        """Get popular mods from Modrinth with more results and better error handling"""
         try:
             # Search for popular mods
             search_url = "https://api.modrinth.com/v2/search"
@@ -224,7 +237,7 @@ class ModManager:
                 'sort_by': 'downloads'
             }
             
-            response = requests.get(search_url, params=params)
+            response = requests.get(search_url, params=params, timeout=30)
             response.raise_for_status()
             
             data = response.json()
@@ -241,14 +254,23 @@ class ModManager:
                     'categories': hit.get('categories', []),
                     'icon_url': hit.get('icon_url'),
                     'date_created': hit.get('date_created'),
-                    'date_modified': hit.get('date_modified')
+                    'date_modified': hit.get('date_modified'),
+                    'project_type': hit.get('project_type', 'mod'),
+                    'client_side': hit.get('client_side', 'unknown'),
+                    'server_side': hit.get('server_side', 'unknown')
                 }
                 mods.append(mod_info)
                 
             return mods
             
+        except requests.exceptions.Timeout:
+            logging.error("Modrinth popular mods request timed out")
+            return []
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Failed to get popular Modrinth mods: {e}")
+            return []
         except Exception as e:
-            logging.error(f"Failed to get popular mods: {e}")
+            logging.error(f"Unexpected error getting popular Modrinth mods: {e}")
             return []
             
     def install_modpack(self, modpack_path: str) -> bool:
@@ -473,23 +495,41 @@ class ModManager:
             return ['1.20.2', '1.20.1', '1.19.4', '1.19.3', '1.19.2', '1.18.2']
     
     def get_modrinth_project_details(self, project_id: str) -> Optional[Dict]:
-        """Get detailed information about a specific Modrinth project"""
+        """Get detailed information about a specific Modrinth project with improved error handling"""
         try:
             project_url = f"https://api.modrinth.com/v2/project/{project_id}"
-            response = requests.get(project_url)
+            response = requests.get(project_url, timeout=30)
             response.raise_for_status()
             
             project_data = response.json()
             
             # Get versions for this project
             versions_url = f"https://api.modrinth.com/v2/project/{project_id}/version"
-            versions_response = requests.get(versions_url)
+            versions_response = requests.get(versions_url, timeout=30)
             versions_response.raise_for_status()
             versions_data = versions_response.json()
             
+            # Process versions to ensure they have all required fields
+            processed_versions = []
+            for version in versions_data:
+                processed_version = {
+                    'id': version.get('id', ''),
+                    'name': version.get('name', ''),
+                    'version_number': version.get('version_number', ''),
+                    'game_versions': version.get('game_versions', []),
+                    'loaders': version.get('loaders', []),
+                    'date_published': version.get('date_published', ''),
+                    'files': version.get('files', []),
+                    'dependencies': version.get('dependencies', [])
+                }
+                processed_versions.append(processed_version)
+            
+            # Sort versions by date (newest first)
+            processed_versions.sort(key=lambda x: x.get('date_published', ''), reverse=True)
+            
             return {
-                'id': project_data['id'],
-                'name': project_data['title'],
+                'id': project_data.get('id', project_id),
+                'name': project_data.get('title', 'Unknown Project'),
                 'description': project_data.get('description', ''),
                 'body': project_data.get('body', ''),
                 'downloads': project_data.get('downloads', 0),
@@ -497,8 +537,8 @@ class ModManager:
                 'author': project_data.get('author', 'Unknown'),
                 'categories': project_data.get('categories', []),
                 'icon_url': project_data.get('icon_url'),
-                'date_created': project_data.get('date_created'),
-                'date_modified': project_data.get('date_modified'),
+                'date_created': project_data.get('date_created', ''),
+                'date_modified': project_data.get('date_modified', ''),
                 'project_type': project_data.get('project_type', 'mod'),
                 'client_side': project_data.get('client_side', 'unknown'),
                 'server_side': project_data.get('server_side', 'unknown'),
@@ -510,9 +550,15 @@ class ModManager:
                 'wiki_url': project_data.get('wiki_url'),
                 'discord_url': project_data.get('discord_url'),
                 'donation_urls': project_data.get('donation_urls', []),
-                'versions': versions_data
+                'versions': processed_versions
             }
             
-        except Exception as e:
+        except requests.exceptions.Timeout:
+            logging.error(f"Timeout getting Modrinth project details for {project_id}")
+            return None
+        except requests.exceptions.RequestException as e:
             logging.error(f"Failed to get Modrinth project details for {project_id}: {e}")
+            return None
+        except Exception as e:
+            logging.error(f"Unexpected error getting Modrinth project details for {project_id}: {e}")
             return None 

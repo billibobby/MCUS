@@ -9,46 +9,170 @@
         <div class="card border-primary">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0">
-                    <i class="fas fa-rocket me-2"></i>Quick Setup
+                    <i class="fas fa-rocket me-2"></i>Quick Setup Progress
                 </h5>
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-4">
-                        <div class="text-center">
-                            <i class="fas fa-download fa-3x text-primary mb-3"></i>
-                            <h6>Step 1: Install Forge</h6>
-                            <p class="text-muted">Set up the mod loader for Minecraft</p>
-                            <a href="/select_forge_version" class="btn btn-primary">
-                                <i class="fas fa-download me-2"></i>Install Forge
-                            </a>
+                    <!-- Step 1: Check Forge -->
+                    <div class="col-md-3">
+                        <div class="text-center setup-step" id="step1">
+                            <div class="step-icon mb-3">
+                                <i class="fas fa-search fa-3x text-info" id="step1-icon"></i>
+                                <div class="step-status" id="step1-status"></div>
+                            </div>
+                            <h6>Step 1: Check Forge</h6>
+                            <p class="text-muted" id="step1-desc">See what Forge versions you have</p>
+                            <div class="step-actions">
+                                <a href="/detect_forge" class="btn btn-info" id="step1-btn">
+                                    <i class="fas fa-search me-2"></i>Detect Forge
+                                </a>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="text-center">
-                            <i class="fas fa-search fa-3x text-success mb-3"></i>
-                            <h6>Step 2: Browse Mods</h6>
-                            <p class="text-muted">Find and install popular mods</p>
-                            <a href="/popular_mods" class="btn btn-success">
-                                <i class="fas fa-star me-2"></i>Popular Mods
-                            </a>
+                    
+                    <!-- Step 2: Install Forge -->
+                    <div class="col-md-3">
+                        <div class="text-center setup-step" id="step2">
+                            <div class="step-icon mb-3">
+                                <i class="fas fa-download fa-3x text-primary" id="step2-icon"></i>
+                                <div class="step-status" id="step2-status"></div>
+                            </div>
+                            <h6>Step 2: Install Forge</h6>
+                            <p class="text-muted" id="step2-desc">Set up the mod loader for Minecraft</p>
+                            <div class="step-actions">
+                                <a href="/select_forge_version" class="btn btn-primary" id="step2-btn">
+                                    <i class="fas fa-download me-2"></i>Install Forge
+                                </a>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="text-center">
-                            <i class="fas fa-play fa-3x text-warning mb-3"></i>
-                            <h6>Step 3: Start Server</h6>
-                            <p class="text-muted">Launch your modded server</p>
-                            <a href="/" class="btn btn-warning">
-                                <i class="fas fa-play me-2"></i>Start Server
-                            </a>
+                    
+                    <!-- Step 3: Browse Mods -->
+                    <div class="col-md-3">
+                        <div class="text-center setup-step" id="step3">
+                            <div class="step-icon mb-3">
+                                <i class="fas fa-search fa-3x text-success" id="step3-icon"></i>
+                                <div class="step-status" id="step3-status"></div>
+                            </div>
+                            <h6>Step 3: Browse Mods</h6>
+                            <p class="text-muted" id="step3-desc">Find and install popular mods</p>
+                            <div class="step-actions">
+                                <a href="/popular_mods" class="btn btn-success" id="step3-btn">
+                                    <i class="fas fa-star me-2"></i>Popular Mods
+                                </a>
+                            </div>
                         </div>
+                    </div>
+                    
+                    <!-- Step 4: Start Server -->
+                    <div class="col-md-3">
+                        <div class="text-center setup-step" id="step4">
+                            <div class="step-icon mb-3">
+                                <i class="fas fa-play fa-3x text-warning" id="step4-icon"></i>
+                                <div class="step-status" id="step4-status"></div>
+                            </div>
+                            <h6>Step 4: Start Server</h6>
+                            <p class="text-muted" id="step4-desc">Launch your modded server</p>
+                            <div class="step-actions">
+                                <a href="/" class="btn btn-warning" id="step4-btn">
+                                    <i class="fas fa-play me-2"></i>Start Server
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="mt-4">
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" id="setup-progress" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="text-center mt-2">
+                        <small class="text-muted" id="progress-text">Ready to begin setup</small>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Popular Modrinth Mods Section -->
+{% if popular_modrinth_mods %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-star me-2"></i>Popular Modrinth Mods
+                </h5>
+                <a href="/popular_mods" class="btn btn-light btn-sm">
+                    <i class="fas fa-arrow-right me-1"></i>View All
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for mod in popular_modrinth_mods %}
+                    <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                        <div class="card h-100 mod-card">
+                            <div class="card-body">
+                                <div class="d-flex align-items-start mb-2">
+                                    {% if mod.icon_url %}
+                                    <img src="{{ mod.icon_url }}" alt="{{ mod.name }}" 
+                                         class="me-2" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px;">
+                                    {% else %}
+                                    <div class="me-2 d-flex align-items-center justify-content-center bg-light" 
+                                         style="width: 32px; height: 32px; border-radius: 4px;">
+                                        <i class="fas fa-puzzle-piece text-muted"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div class="flex-grow-1">
+                                        <h6 class="card-title mb-1 small">{{ mod.name }}</h6>
+                                        <small class="text-muted">by {{ mod.author }}</small>
+                                    </div>
+                                </div>
+                                
+                                <p class="card-text text-muted small mb-2">
+                                    {{ mod.description[:80] }}{% if mod.description|length > 80 %}...{% endif %}
+                                </p>
+                                
+                                <div class="mb-2">
+                                    {% for category in mod.categories[:2] %}
+                                    <span class="badge bg-secondary me-1 small">{{ category }}</span>
+                                    {% endfor %}
+                                    {% if mod.categories|length > 2 %}
+                                    <span class="badge bg-secondary small">+{{ mod.categories|length - 2 }}</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-download me-1"></i>{{ "{:,}".format(mod.downloads) }}
+                                    </small>
+                                    <small class="text-muted">
+                                        <i class="fas fa-heart me-1"></i>{{ "{:,}".format(mod.followers) }}
+                                    </small>
+                                </div>
+                                
+                                <div class="d-flex gap-1">
+                                    <a href="/modrinth_project/{{ mod.id }}" class="btn btn-outline-primary btn-sm flex-fill">
+                                        <i class="fas fa-info-circle"></i>
+                                    </a>
+                                    <a href="/download_mod/{{ mod.id }}" class="btn btn-success btn-sm">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row">
     <div class="col-md-8">
         <div class="card mb-4">
@@ -124,6 +248,9 @@
                 </h5>
             </div>
             <div class="card-body">
+                <a href="/detect_forge" class="btn btn-info w-100 mb-2">
+                    <i class="fas fa-search me-2"></i>Detect Forge Versions
+                </a>
                 <a href="/browse_modrinth" class="btn btn-primary w-100 mb-2">
                     <i class="fas fa-th-large me-2"></i>Browse All Modrinth Mods
                 </a>
@@ -140,4 +267,222 @@
         </div>
     </div>
 </div>
+
+<style>
+.mod-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mod-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
+}
+
+.status-online {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.status-offline {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.setup-step {
+    transition: all 0.3s ease;
+    padding: 15px;
+    border-radius: 10px;
+}
+
+.setup-step.completed {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border: 2px solid #28a745;
+}
+
+.setup-step.current {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 2px solid #ffc107;
+    transform: scale(1.05);
+}
+
+.setup-step.pending {
+    opacity: 0.6;
+}
+
+.step-icon {
+    position: relative;
+    display: inline-block;
+}
+
+.step-status {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: white;
+    font-weight: bold;
+}
+
+.step-status.completed {
+    background: #28a745;
+}
+
+.step-status.current {
+    background: #ffc107;
+    color: #212529;
+}
+
+.step-status.pending {
+    background: #6c757d;
+}
+
+.progress {
+    border-radius: 10px;
+    background: #e9ecef;
+}
+
+.progress-bar {
+    border-radius: 10px;
+    transition: width 0.5s ease;
+}
+</style>
+
+<script>
+// Check setup progress on page load
+document.addEventListener('DOMContentLoaded', function() {
+    checkSetupProgress();
+    
+    // Check progress every 30 seconds
+    setInterval(checkSetupProgress, 30000);
+});
+
+function checkSetupProgress() {
+    // Step 1: Check if Forge is detected
+    fetch('/api/diagnostics/run/forge')
+        .then(response => response.json())
+        .then(data => {
+            const forgeFound = data.some(result => result.name === 'Forge Installation' && result.status === 'success');
+            updateStep(1, forgeFound ? 'completed' : 'current');
+            
+            // Step 2: Check if Forge is installed and ready
+            if (forgeFound) {
+                updateStep(2, 'completed');
+                updateStep(3, 'current');
+            } else {
+                updateStep(2, 'current');
+                updateStep(3, 'pending');
+            }
+            
+            // Step 3: Check if mods are installed
+            fetch('/api/diagnostics/run/mods')
+                .then(response => response.json())
+                .then(modData => {
+                    const modsInstalled = modData.some(result => result.name === 'Mods Directory' && result.message.includes('mods'));
+                    if (modsInstalled) {
+                        updateStep(3, 'completed');
+                        updateStep(4, 'current');
+                    } else {
+                        updateStep(4, 'pending');
+                    }
+                    
+                    // Step 4: Check if server is running
+                    fetch('/api/diagnostics/run/server')
+                        .then(response => response.json())
+                        .then(serverData => {
+                            const serverReady = serverData.some(result => result.name === 'Server Directory' && result.status === 'success');
+                            if (serverReady) {
+                                updateStep(4, 'completed');
+                            }
+                            
+                            updateProgressBar();
+                        })
+                        .catch(error => {
+                            console.error('Error checking server status:', error);
+                            updateProgressBar();
+                        });
+                })
+                .catch(error => {
+                    console.error('Error checking mods status:', error);
+                    updateProgressBar();
+                });
+        })
+        .catch(error => {
+            console.error('Error checking Forge status:', error);
+            updateStep(1, 'current');
+            updateStep(2, 'pending');
+            updateStep(3, 'pending');
+            updateStep(4, 'pending');
+            updateProgressBar();
+        });
+}
+
+function updateStep(stepNumber, status) {
+    const step = document.getElementById(`step${stepNumber}`);
+    const icon = document.getElementById(`step${stepNumber}-icon`);
+    const statusDiv = document.getElementById(`step${stepNumber}-status`);
+    const desc = document.getElementById(`step${stepNumber}-desc`);
+    const btn = document.getElementById(`step${stepNumber}-btn`);
+    
+    // Remove all status classes
+    step.classList.remove('completed', 'current', 'pending');
+    statusDiv.classList.remove('completed', 'current', 'pending');
+    
+    // Add new status class
+    step.classList.add(status);
+    statusDiv.classList.add(status);
+    
+    // Update status indicator
+    if (status === 'completed') {
+        statusDiv.innerHTML = '<i class="fas fa-check"></i>';
+        desc.textContent = 'Step completed successfully!';
+        btn.classList.add('btn-success');
+        btn.classList.remove('btn-info', 'btn-primary', 'btn-warning');
+    } else if (status === 'current') {
+        statusDiv.innerHTML = '<i class="fas fa-play"></i>';
+        desc.textContent = 'Ready to proceed with this step';
+        btn.classList.add('btn-warning');
+        btn.classList.remove('btn-info', 'btn-primary', 'btn-success');
+    } else {
+        statusDiv.innerHTML = '<i class="fas fa-clock"></i>';
+        desc.textContent = 'Complete previous steps first';
+        btn.classList.add('btn-secondary');
+        btn.classList.remove('btn-info', 'btn-primary', 'btn-success', 'btn-warning');
+    }
+}
+
+function updateProgressBar() {
+    const progressBar = document.getElementById('setup-progress');
+    const progressText = document.getElementById('progress-text');
+    
+    // Count completed steps
+    let completedSteps = 0;
+    for (let i = 1; i <= 4; i++) {
+        const step = document.getElementById(`step${i}`);
+        if (step.classList.contains('completed')) {
+            completedSteps++;
+        }
+    }
+    
+    const progress = (completedSteps / 4) * 100;
+    progressBar.style.width = progress + '%';
+    
+    if (progress === 0) {
+        progressText.textContent = 'Ready to begin setup';
+    } else if (progress === 25) {
+        progressText.textContent = 'Forge detected - Ready to install';
+    } else if (progress === 50) {
+        progressText.textContent = 'Forge installed - Ready to add mods';
+    } else if (progress === 75) {
+        progressText.textContent = 'Mods ready - Ready to start server';
+    } else if (progress === 100) {
+        progressText.textContent = 'Setup complete! Server is ready to run';
+    }
+}
+</script>
 {% endblock %} 

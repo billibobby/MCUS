@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Detect Forge Versions - MCUS{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-search me-2"></i>Forge Version Detection
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">
+                        <strong>Scanning your server directory for installed Forge versions.</strong>
+                        This will help you identify what Forge versions you have available and select the best one for your server.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detected Versions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>Detected Forge Versions
+                    </h5>
+                    <span class="badge bg-light text-dark">{{ detected_versions|length }} found</span>
+                </div>
+                <div class="card-body">
+                    {% if detected_versions %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>File Name</th>
+                                        <th>Minecraft Version</th>
+                                        <th>Forge Version</th>
+                                        <th>Size</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for version in detected_versions %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ version.file }}</strong>
+                                            {% if version.version_number == 'Unknown' %}
+                                                <br><small class="text-muted">Version info not available</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if version.minecraft_version != 'Unknown' %}
+                                                <span class="badge bg-primary">{{ version.minecraft_version }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Unknown</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if version.forge_version != 'Unknown' %}
+                                                <span class="badge bg-info">{{ version.forge_version }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Unknown</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ version.size_mb }} MB</td>
+                                        <td>
+                                            {% if version.version_number != 'Unknown' %}
+                                                <span class="badge bg-success">Valid</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Limited Info</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <form method="post" action="/use_forge_version" style="display: inline;">
+                                                <input type="hidden" name="selected_file" value="{{ version.file }}">
+                                                <button type="submit" class="btn btn-success btn-sm">
+                                                    <i class="fas fa-check me-1"></i>Use This
+                                                </button>
+                                            </form>
+                                            <a href="/modrinth_project/{{ version.id }}" class="btn btn-outline-info btn-sm">
+                                                <i class="fas fa-info-circle"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                            <h5>No Forge Versions Detected</h5>
+                            <p class="text-muted">No Forge server JARs were found in your server directory.</p>
+                            <a href="/select_forge_version" class="btn btn-primary">
+                                <i class="fas fa-download me-2"></i>Install Forge
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Versions for Installation -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-download me-2"></i>Available Forge Versions for Installation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if available_versions %}
+                        <div class="row">
+                            {% for minecraft_version, forge_versions in available_versions.items() %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-cube me-2"></i>Minecraft {{ minecraft_version }}
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-2">
+                                            <strong>Available Forge Builds:</strong>
+                                        </div>
+                                        <div class="list-group list-group-flush">
+                                            {% for forge_version in forge_versions[:5] %}
+                                            <div class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                                <span class="small">{{ forge_version }}</span>
+                                                <form method="post" action="/install_forge_version" style="display: inline;">
+                                                    <input type="hidden" name="minecraft_version" value="{{ minecraft_version }}">
+                                                    <input type="hidden" name="forge_build" value="{{ forge_version.split('-')[1] }}">
+                                                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                                                        <i class="fas fa-download"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            {% endfor %}
+                                            {% if forge_versions|length > 5 %}
+                                            <div class="list-group-item text-center py-2">
+                                                <small class="text-muted">+{{ forge_versions|length - 5 }} more versions</small>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-info-circle fa-3x text-info mb-3"></i>
+                            <h5>No Available Versions</h5>
+                            <p class="text-muted">Unable to load available Forge versions.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="/select_forge_version" class="btn btn-primary w-100">
+                                <i class="fas fa-download me-2"></i>Install New Forge
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="/mods" class="btn btn-success w-100">
+                                <i class="fas fa-puzzle-piece me-2"></i>Back to Mods
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="/diagnostics" class="btn btn-info w-100">
+                                <i class="fas fa-tools me-2"></i>System Diagnostics
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="/" class="btn btn-warning w-100">
+                                <i class="fas fa-home me-2"></i>Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.table th {
+    background-color: #f8f9fa;
+    border-top: none;
+}
+
+.badge {
+    font-size: 0.8rem;
+}
+
+.list-group-item {
+    border-left: none;
+    border-right: none;
+}
+
+.list-group-item:first-child {
+    border-top: none;
+}
+
+.list-group-item:last-child {
+    border-bottom: none;
+}
+</style>
+{% endblock %} 

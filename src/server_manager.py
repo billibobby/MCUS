@@ -329,6 +329,23 @@ class ServerManager:
     def _start_server_process(self, server_jar, java_info, memory_info):
         """Start the server process with proper error handling"""
         try:
+            # Check if this is a Forge server and get startup files
+            forge_files = self._get_forge_startup_files(server_jar)
+            
+            if forge_files:
+                # Use Forge-specific startup method
+                return self._start_forge_server(forge_files, java_info, memory_info)
+            else:
+                # Use standard server startup method
+                return self._start_standard_server(server_jar, java_info, memory_info)
+                
+        except Exception as e:
+            logging.error(f"Failed to start server process: {e}")
+            return False
+
+    def _start_forge_server(self, forge_files, java_info, memory_info):
+        """Start a Forge server using the proper startup method"""
+        try:
             # Determine memory allocation based on available resources
             if memory_info['available_memory_gb']:
                 available_gb = memory_info['available_memory_gb']
@@ -345,9 +362,108 @@ class ServerManager:
                 max_heap = "2G"
                 min_heap = "1G"
             
-            # Build command with optimized JVM arguments
+            # Create or update user_jvm_args.txt with memory settings
+            user_jvm_args = forge_files['user_jvm_args']
+            if user_jvm_args:
+                with open(user_jvm_args, 'w') as f:
+                    f.write(f"-Xmx{max_heap}\n")
+                    f.write(f"-Xms{min_heap}\n")
+                    f.write("-XX:+UseG1GC\n")
+                    f.write("-XX:+ParallelRefProcEnabled\n")
+                    f.write("-XX:MaxGCPauseMillis=200\n")
+                    f.write("-XX:+UnlockExperimentalVMOptions\n")
+                    f.write("-XX:+DisableExplicitGC\n")
+                    f.write("-XX:+AlwaysPreTouch\n")
+                    f.write("-XX:G1NewSizePercent=30\n")
+                    f.write("-XX:G1MaxNewSizePercent=40\n")
+                    f.write("-XX:G1HeapRegionSize=8M\n")
+                    f.write("-XX:G1ReservePercent=20\n")
+                    f.write("-XX:G1HeapWastePercent=5\n")
+                    f.write("-XX:G1MixedGCCountTarget=4\n")
+                    f.write("-XX:InitiatingHeapOccupancyPercent=15\n")
+                    f.write("-XX:G1MixedGCLiveThresholdPercent=90\n")
+                    f.write("-XX:G1RSetUpdatingPauseTimePercent=5\n")
+                    f.write("-XX:SurvivorRatio=32\n")
+                    f.write("-XX:+PerfDisableSharedMem\n")
+                    f.write("-XX:MaxTenuringThreshold=1\n")
+            
+            # Build Forge startup command using the specific Java path
+            cmd = [java_info['path']]
+            
+            # Add JVM arguments from user_jvm_args.txt if it exists
+            if user_jvm_args and user_jvm_args.exists():
+                cmd.extend([f"@{user_jvm_args}"])
+            
+            # Add platform-specific args
+            if os.name == 'nt' and forge_files['win_args']:
+                cmd.extend([f"@{forge_files['win_args']}"])
+            elif forge_files['unix_args']:
+                cmd.extend([f"@{forge_files['unix_args']}"])
+            
+            # Add nogui argument
+            cmd.append("nogui")
+            
+            logging.info(f"Starting Forge server with command: {' '.join(cmd[:3])}... @args nogui")
+            
+            # Start server process
+            self.server_process = subprocess.Popen(
+                cmd,
+                cwd=str(self.server_dir),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.PIPE,
+                universal_newlines=True,
+                creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
+            )
+            
+            # Wait a moment to see if process starts successfully
+            time.sleep(2)
+            
+            if self.server_process.poll() is not None:
+                # Process terminated immediately
+                logging.error("Forge server process terminated immediately")
+                return False
+            
+            self.is_running = True
+            
+            # Start output monitoring thread
+            threading.Thread(target=self.monitor_server_output, daemon=True).start()
+            
+            logging.info(f"Forge server started successfully with {max_heap} max heap, {min_heap} min heap")
+            return True
+            
+        except PermissionError:
+            logging.error("Permission denied when starting Forge server process")
+            return False
+        except FileNotFoundError:
+            logging.error("Forge startup files or Java executable not found")
+            return False
+        except Exception as e:
+            logging.error(f"Failed to start Forge server process: {e}")
+            return False
+
+    def _start_standard_server(self, server_jar, java_info, memory_info):
+        """Start a standard Minecraft server (vanilla or other modloaders)"""
+        try:
+            # Determine memory allocation based on available resources
+            if memory_info['available_memory_gb']:
+                available_gb = memory_info['available_memory_gb']
+                if available_gb >= 8:
+                    max_heap = "4G"
+                    min_heap = "2G"
+                elif available_gb >= 4:
+                    max_heap = "3G"
+                    min_heap = "1G"
+                else:
+                    max_heap = "2G"
+                    min_heap = "1G"
+            else:
+                max_heap = "2G"
+                min_heap = "1G"
+            
+            # Build command with optimized JVM arguments using the specific Java path
             cmd = [
-                "java",
+                java_info['path'],
                 f"-Xmx{max_heap}",
                 f"-Xms{min_heap}",
                 "-XX:+UseG1GC",
@@ -372,7 +488,7 @@ class ServerManager:
                 "nogui"
             ]
             
-            logging.info(f"Starting server with command: {' '.join(cmd[:3])}... -jar {server_jar.name}")
+            logging.info(f"Starting standard server with command: {' '.join(cmd[:3])}... -jar {server_jar.name}")
             
             # Start server process
             self.server_process = subprocess.Popen(
@@ -390,7 +506,7 @@ class ServerManager:
             
             if self.server_process.poll() is not None:
                 # Process terminated immediately
-                logging.error("Server process terminated immediately")
+                logging.error("Standard server process terminated immediately")
                 return False
             
             self.is_running = True
@@ -398,17 +514,17 @@ class ServerManager:
             # Start output monitoring thread
             threading.Thread(target=self.monitor_server_output, daemon=True).start()
             
-            logging.info(f"Server started successfully with {max_heap} max heap, {min_heap} min heap")
+            logging.info(f"Standard server started successfully with {max_heap} max heap, {min_heap} min heap")
             return True
             
         except PermissionError:
-            logging.error("Permission denied when starting server process")
+            logging.error("Permission denied when starting standard server process")
             return False
         except FileNotFoundError:
             logging.error("Server JAR or Java executable not found")
             return False
         except Exception as e:
-            logging.error(f"Failed to start server process: {e}")
+            logging.error(f"Failed to start standard server process: {e}")
             return False
             
     def stop_server(self):
@@ -491,12 +607,328 @@ class ServerManager:
             pass
             
     def find_server_jar(self):
-        """Find the server jar file"""
-        for file in self.server_dir.glob("*.jar"):
-            if "forge" in file.name.lower() or "server" in file.name.lower():
-                return file
+        """Find the server jar file with improved Forge detection"""
+        # First, check for Forge server JARs in the libraries directory
+        forge_libs_dir = self.server_dir / "libraries" / "net" / "minecraftforge" / "forge"
+        if forge_libs_dir.exists():
+            for version_dir in forge_libs_dir.iterdir():
+                if version_dir.is_dir():
+                    server_jar = version_dir / f"forge-{version_dir.name}-server.jar"
+                    if server_jar.exists():
+                        logging.info(f"Found Forge server JAR: {server_jar.name}")
+                        return server_jar
+        
+        # Fallback to checking for JARs in the main server directory
+        jar_files = list(self.server_dir.glob("*.jar"))
+        
+        if not jar_files:
+            return None
+            
+        # Priority order for server JAR detection
+        priority_patterns = [
+            # Forge server JARs (most specific)
+            lambda f: "forge" in f.name.lower() and "server" in f.name.lower(),
+            lambda f: "forge" in f.name.lower() and "universal" in f.name.lower(),
+            lambda f: "forge" in f.name.lower() and any(version in f.name.lower() for version in ["1.19", "1.20", "1.18"]),
+            
+            # Vanilla server JARs
+            lambda f: "server" in f.name.lower() and "minecraft" in f.name.lower(),
+            lambda f: "server" in f.name.lower() and any(version in f.name.lower() for version in ["1.19", "1.20", "1.18"]),
+            
+            # Generic server JARs
+            lambda f: "server" in f.name.lower(),
+            lambda f: "forge" in f.name.lower(),
+            
+            # Any JAR file as fallback
+            lambda f: True
+        ]
+        
+        for pattern in priority_patterns:
+            for jar_file in jar_files:
+                if pattern(jar_file):
+                    # Additional validation: check if it's a valid server JAR
+                    if self._is_valid_server_jar(jar_file):
+                        logging.info(f"Found server JAR: {jar_file.name}")
+                        return jar_file
+        
+        return None
+
+    def _is_forge_server(self, server_jar):
+        """Check if the server JAR is a Forge server"""
+        if not server_jar:
+            return False
+        
+        # Check if it's in the Forge libraries directory
+        if "libraries/net/minecraftforge/forge" in str(server_jar):
+            return True
+        
+        # Check if it's a Forge server JAR by name
+        if "forge" in server_jar.name.lower() and "server" in server_jar.name.lower():
+            return True
+        
+        return False
+
+    def _get_forge_startup_files(self, server_jar):
+        """Get the Forge startup files (shim JAR and args files)"""
+        if not self._is_forge_server(server_jar):
+            return None
+        
+        # Extract version from server JAR path
+        # Path format: libraries/net/minecraftforge/forge/1.21.7-57.0.2/forge-1.21.7-57.0.2-server.jar
+        jar_path = Path(server_jar)
+        version_dir = jar_path.parent
+        version = version_dir.name
+        
+        # Check for shim JAR and args files
+        shim_jar = self.server_dir / f"forge-{version}-shim.jar"
+        unix_args = version_dir / "unix_args.txt"
+        win_args = version_dir / "win_args.txt"
+        user_jvm_args = self.server_dir / "user_jvm_args.txt"
+        
+        if shim_jar.exists() and (unix_args.exists() or win_args.exists()):
+            return {
+                'shim_jar': shim_jar,
+                'unix_args': unix_args if unix_args.exists() else None,
+                'win_args': win_args if win_args.exists() else None,
+                'user_jvm_args': user_jvm_args if user_jvm_args.exists() else None,
+                'version': version
+            }
+        
         return None
         
+    def _is_valid_server_jar(self, jar_path):
+        """Check if a JAR file is a valid Minecraft server JAR with improved Forge detection"""
+        try:
+            import zipfile
+            with zipfile.ZipFile(jar_path, 'r') as jar:
+                file_list = jar.namelist()
+                
+                # Check for Forge server JARs specifically
+                if self._is_forge_server_jar(jar_path, file_list):
+                    return True
+                
+                # Check for essential server files
+                server_indicators = [
+                    'META-INF/MANIFEST.MF',
+                    'net/minecraft/server/',
+                    'com/mojang/',
+                    'META-INF/mods.toml',  # Forge mods
+                    'fabric.mod.json',     # Fabric mods
+                    'server.properties',
+                    'eula.txt'
+                ]
+                
+                # Check for any server indicator
+                for indicator in server_indicators:
+                    if any(indicator in f for f in file_list):
+                        return True
+                
+                # Check for Minecraft server classes
+                if any('minecraft' in f.lower() and 'server' in f.lower() for f in file_list):
+                    return True
+                    
+                return False
+                
+        except zipfile.BadZipFile:
+            logging.warning(f"Invalid JAR file: {jar_path}")
+            return False
+        except Exception as e:
+            logging.warning(f"Error checking JAR {jar_path}: {e}")
+            return False
+
+    def _is_forge_server_jar(self, jar_path, file_list):
+        """Check if this is specifically a Forge server JAR"""
+        jar_name = jar_path.name.lower()
+        
+        # Check if it's a Forge server JAR by name and contents
+        if "forge" in jar_name and "server" in jar_name:
+            # Check for Forge-specific files
+            forge_indicators = [
+                'META-INF/mods.toml',
+                'net/minecraftforge/',
+                'cpw/mods/',
+                'org/spongepowered/',
+                'fml/',
+                'forge-'
+            ]
+            
+            for indicator in forge_indicators:
+                if any(indicator in f for f in file_list):
+                    return True
+            
+            # Check for Forge version in JAR name
+            if any(char.isdigit() for char in jar_name):
+                return True
+        
+        return False
+
+    def is_forge_properly_installed(self):
+        """Check if Forge is properly installed and ready to run"""
+        try:
+            # First, check if there's a Forge server JAR in the main server directory
+            server_jar = self._find_forge_server_jar()
+            if not server_jar:
+                logging.info("No Forge server JAR found in server directory")
+                return False
+            
+            # Check for required startup files
+            forge_files = self._get_forge_startup_files(server_jar)
+            if not forge_files:
+                logging.info("Forge startup files not found")
+                return False
+            
+            # Check if all required files exist
+            required_files = [
+                forge_files['shim_jar'],
+                forge_files['user_jvm_args']
+            ]
+            
+            if os.name == 'nt' and forge_files['win_args']:
+                required_files.append(forge_files['win_args'])
+            elif forge_files['unix_args']:
+                required_files.append(forge_files['unix_args'])
+            
+            for file_path in required_files:
+                if not file_path.exists():
+                    logging.info(f"Required Forge file missing: {file_path}")
+                    return False
+            
+            # Check Java compatibility
+            java_info = self._check_java_installation()
+            if not java_info['available']:
+                logging.info(f"Java not available: {java_info['error']}")
+                return False
+            
+            # Check if Java version is compatible with Forge
+            if java_info['version']:
+                import re
+                version_match = re.search(r'(\d+)', java_info['version'])
+                if version_match:
+                    java_major = int(version_match.group(1))
+                    # Forge 1.21.x requires Java 21+
+                    if java_major < 21:
+                        logging.info(f"Java {java_major} is too old for Forge 1.21.x (requires Java 21+)")
+                        return False
+            
+            logging.info(f"Forge {forge_files['version']} is properly installed and ready")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Error checking Forge installation: {e}")
+            return False
+
+    def _find_forge_server_jar(self):
+        """Find the actual Forge server JAR in the server directory"""
+        try:
+            # Look for Forge server JAR in the main server directory
+            for file in self.server_dir.iterdir():
+                if file.is_file() and file.suffix == '.jar':
+                    if self._is_forge_server_jar(file, []):  # We'll check contents separately
+                        # Verify it's actually a Forge server JAR by checking contents
+                        if self._verify_forge_server_jar(file):
+                            return file
+            
+            # If not found in main directory, check libraries (but this is less ideal)
+            forge_libs_dir = self.server_dir / "libraries" / "net" / "minecraftforge" / "forge"
+            if forge_libs_dir.exists():
+                for version_dir in forge_libs_dir.iterdir():
+                    if version_dir.is_dir():
+                        potential_jar = version_dir / f"forge-{version_dir.name}-server.jar"
+                        if potential_jar.exists() and self._verify_forge_server_jar(potential_jar):
+                            return potential_jar
+            
+            return None
+            
+        except Exception as e:
+            logging.error(f"Error finding Forge server JAR: {e}")
+            return None
+
+    def _verify_forge_server_jar(self, jar_path):
+        """Verify that a JAR is actually a Forge server JAR by checking its contents"""
+        try:
+            import zipfile
+            with zipfile.ZipFile(jar_path, 'r') as jar:
+                file_list = jar.namelist()
+                
+                # Check for Forge-specific files that indicate this is a server JAR
+                forge_indicators = [
+                    'META-INF/mods.toml',
+                    'net/minecraftforge/',
+                    'cpw/mods/',
+                    'org/spongepowered/',
+                    'fml/',
+                    'META-INF/MANIFEST.MF'
+                ]
+                
+                has_forge_files = any(any(indicator in f for f in file_list) for indicator in forge_indicators)
+                
+                # Also check that it's not an installer
+                is_installer = any('installer' in f.lower() for f in file_list)
+                
+                return has_forge_files and not is_installer
+                
+        except Exception as e:
+            logging.warning(f"Error verifying JAR {jar_path}: {e}")
+            return False
+
+    def get_forge_installation_status(self):
+        """Get detailed status of Forge installation"""
+        status = {
+            'installed': False,
+            'version': None,
+            'java_compatible': False,
+            'startup_files_ready': False,
+            'server_jar_location': None,
+            'issues': []
+        }
+        
+        try:
+            # Find the actual Forge server JAR
+            server_jar = self._find_forge_server_jar()
+            if not server_jar:
+                status['issues'].append("Forge server JAR not found in server directory")
+                return status
+            
+            status['server_jar_location'] = str(server_jar)
+            
+            # Extract version from JAR name or path
+            jar_name = server_jar.name
+            if 'forge-' in jar_name and '-server.jar' in jar_name:
+                version = jar_name.replace('forge-', '').replace('-server.jar', '')
+                status['version'] = version
+                status['installed'] = True
+            else:
+                status['issues'].append("Could not determine Forge version from JAR name")
+                return status
+            
+            # Check Java compatibility
+            java_info = self._check_java_installation()
+            if not java_info['available']:
+                status['issues'].append(f"Java not available: {java_info['error']}")
+            else:
+                status['java_compatible'] = True
+                if java_info['version']:
+                    import re
+                    version_match = re.search(r'(\d+)', java_info['version'])
+                    if version_match:
+                        java_major = int(version_match.group(1))
+                        if java_major < 21:
+                            status['issues'].append(f"Java {java_major} is too old for Forge 1.21.x (requires Java 21+)")
+                            status['java_compatible'] = False
+            
+            # Check startup files
+            forge_files = self._get_forge_startup_files(server_jar)
+            if forge_files:
+                status['startup_files_ready'] = True
+            else:
+                status['issues'].append("Forge startup files not found")
+            
+            return status
+            
+        except Exception as e:
+            status['issues'].append(f"Error checking installation: {e}")
+            return status
+            
     def create_server_properties(self):
         """Create server.properties file"""
         properties = {
@@ -521,15 +953,31 @@ class ServerManager:
                 f.write(f"{key}={value}\n")
                 
     def install_forge(self, version="1.19.2"):
-        """Install Forge server"""
+        """Install Forge server with improved version selection"""
         try:
-            # Try different Forge versions for compatibility
+            # Try different Forge versions for compatibility (more recent versions first)
             forge_versions = [
+                # 1.19.2 versions (most stable)
+                f"{version}-43.2.0",
+                f"{version}-43.1.7",
+                f"{version}-43.1.6",
+                f"{version}-43.1.5",
+                f"{version}-43.1.4",
+                f"{version}-43.1.3",
+                f"{version}-43.1.2",
+                f"{version}-43.1.1",
+                f"{version}-43.1.0",
+                f"{version}-43.0.0",
+                # Fallback to older versions
+                f"{version}-42.0.0",
+                f"{version}-41.0.0",
                 f"{version}-40.2.0",
                 f"{version}-40.1.0", 
                 f"{version}-40.0.0",
                 f"{version}-39.0.0"
             ]
+            
+            logging.info(f"Attempting to install Forge for Minecraft {version}")
             
             for forge_version in forge_versions:
                 try:
@@ -539,28 +987,39 @@ class ServerManager:
                     installer_path = self.server_dir / "forge-installer.jar"
                     
                     logging.info(f"Trying Forge version: {forge_version}")
+                    logging.info(f"Downloading from: {forge_url}")
+                    
                     response = requests.get(forge_url, stream=True, timeout=30)
+                    
+                    if response.status_code == 404:
+                        logging.warning(f"Forge version {forge_version} not found (404)")
+                        continue
+                    
                     response.raise_for_status()
                     
                     with open(installer_path, 'wb') as f:
                         for chunk in response.iter_content(chunk_size=8192):
                             f.write(chunk)
                             
+                    logging.info(f"Downloaded Forge installer: {installer_path.stat().st_size} bytes")
+                            
                     # Run installer
-                    logging.info("Installing Forge...")
+                    logging.info(f"Installing Forge {forge_version}...")
                     result = subprocess.run([
                         "java", "-jar", str(installer_path),
                         "--installServer"
                     ], cwd=str(self.server_dir), capture_output=True, text=True, timeout=300)
                     
+                    # Clean up installer
+                    installer_path.unlink()
+                    
                     if result.returncode == 0:
-                        # Clean up installer
-                        installer_path.unlink()
                         logging.info(f"Forge {forge_version} installed successfully")
+                        logging.info(f"Installation output: {result.stdout}")
                         return True
                     else:
-                        logging.warning(f"Forge {forge_version} installation failed: {result.stderr}")
-                        installer_path.unlink()
+                        logging.warning(f"Forge {forge_version} installation failed with return code {result.returncode}")
+                        logging.warning(f"Error output: {result.stderr}")
                         continue
                         
                 except requests.exceptions.RequestException as e:
@@ -575,6 +1034,7 @@ class ServerManager:
             
             # If all versions failed, log the issue
             logging.error("All automatic Forge installations failed. Please install Forge manually.")
+            logging.error("You can download Forge manually from: https://files.minecraftforge.net/")
             return False
             
         except Exception as e:
@@ -726,6 +1186,183 @@ class ServerManager:
             return process.memory_info().rss / 1024 / 1024  # MB
         except:
             return 0
+
+    def detect_forge_versions(self):
+        """Detect all available Forge versions in the server directory"""
+        detected_versions = []
+        
+        if not self.server_dir.exists():
+            return detected_versions
+            
+        for jar_file in self.server_dir.glob("*.jar"):
+            try:
+                # Check if it's a Forge JAR
+                if self._is_forge_jar(jar_file):
+                    version_info = self._extract_forge_version(jar_file)
+                    if version_info:
+                        detected_versions.append(version_info)
+                        
+            except Exception as e:
+                logging.warning(f"Error analyzing JAR {jar_file.name}: {e}")
+                
+        # Sort by version (newest first)
+        detected_versions.sort(key=lambda x: x['version_number'], reverse=True)
+        return detected_versions
+        
+    def _is_forge_jar(self, jar_path):
+        """Check if a JAR file is a Forge server JAR"""
+        try:
+            import zipfile
+            with zipfile.ZipFile(jar_path, 'r') as jar:
+                file_list = jar.namelist()
+                
+                # Check for Forge-specific indicators
+                forge_indicators = [
+                    'net/minecraftforge/',
+                    'META-INF/mods.toml',
+                    'forge-',
+                    'fml/',
+                    'cpw/mods/'
+                ]
+                
+                for indicator in forge_indicators:
+                    if any(indicator in f for f in file_list):
+                        return True
+                        
+                # Check filename for Forge patterns
+                filename = jar_path.name.lower()
+                if 'forge' in filename and ('server' in filename or 'universal' in filename):
+                    return True
+                    
+                return False
+                
+        except zipfile.BadZipFile:
+            return False
+        except Exception as e:
+            logging.warning(f"Error checking if JAR is Forge: {e}")
+            return False
+            
+    def _extract_forge_version(self, jar_path):
+        """Extract version information from a Forge JAR"""
+        try:
+            import zipfile
+            import re
+            
+            with zipfile.ZipFile(jar_path, 'r') as jar:
+                file_list = jar.namelist()
+                
+                # Try to extract version from filename first
+                filename = jar_path.name
+                version_match = re.search(r'forge-(\d+\.\d+\.\d+)-(\d+\.\d+\.\d+)', filename)
+                if version_match:
+                    minecraft_version = version_match.group(1)
+                    forge_version = version_match.group(2)
+                    return {
+                        'file': jar_path.name,
+                        'path': str(jar_path),
+                        'minecraft_version': minecraft_version,
+                        'forge_version': forge_version,
+                        'version_number': f"{minecraft_version}-{forge_version}",
+                        'size_mb': round(jar_path.stat().st_size / (1024 * 1024), 1),
+                        'type': 'server'
+                    }
+                
+                # Try to extract from mods.toml
+                for file_name in file_list:
+                    if file_name.endswith('mods.toml'):
+                        try:
+                            with jar.open(file_name) as f:
+                                content = f.read().decode('utf-8')
+                                
+                                # Extract version info from mods.toml
+                                minecraft_match = re.search(r'loaderVersion\s*=\s*"(\d+\.\d+\.\d+)"', content)
+                                if minecraft_match:
+                                    minecraft_version = minecraft_match.group(1)
+                                    # Try to get Forge version from filename or other sources
+                                    forge_match = re.search(r'forge-(\d+\.\d+\.\d+)', filename)
+                                    forge_version = forge_match.group(1) if forge_match else "Unknown"
+                                    
+                                    return {
+                                        'file': jar_path.name,
+                                        'path': str(jar_path),
+                                        'minecraft_version': minecraft_version,
+                                        'forge_version': forge_version,
+                                        'version_number': f"{minecraft_version}-{forge_version}",
+                                        'size_mb': round(jar_path.stat().st_size / (1024 * 1024), 1),
+                                        'type': 'server'
+                                    }
+                        except Exception as e:
+                            logging.warning(f"Error reading mods.toml: {e}")
+                            continue
+                            
+                # Fallback: try to extract from any version info in the JAR
+                for file_name in file_list:
+                    if 'version' in file_name.lower() or 'build' in file_name.lower():
+                        try:
+                            with jar.open(file_name) as f:
+                                content = f.read().decode('utf-8', errors='ignore')
+                                version_match = re.search(r'(\d+\.\d+\.\d+)', content)
+                                if version_match:
+                                    return {
+                                        'file': jar_path.name,
+                                        'path': str(jar_path),
+                                        'minecraft_version': 'Unknown',
+                                        'forge_version': version_match.group(1),
+                                        'version_number': f"Unknown-{version_match.group(1)}",
+                                        'size_mb': round(jar_path.stat().st_size / (1024 * 1024), 1),
+                                        'type': 'server'
+                                    }
+                        except:
+                            continue
+                            
+                # If we can't extract version info, return basic info
+                return {
+                    'file': jar_path.name,
+                    'path': str(jar_path),
+                    'minecraft_version': 'Unknown',
+                    'forge_version': 'Unknown',
+                    'version_number': 'Unknown',
+                    'size_mb': round(jar_path.stat().st_size / (1024 * 1024), 1),
+                    'type': 'server'
+                }
+                
+        except Exception as e:
+            logging.error(f"Error extracting Forge version from {jar_path}: {e}")
+            return None
+            
+    def get_available_forge_versions(self):
+        """Get list of available Forge versions for installation"""
+        try:
+            # Common Forge versions for different Minecraft versions
+            available_versions = {
+                '1.20.4': [
+                    '1.20.4-49.0.3', '1.20.4-49.0.2', '1.20.4-49.0.1', '1.20.4-49.0.0',
+                    '1.20.4-48.0.3', '1.20.4-48.0.2', '1.20.4-48.0.1', '1.20.4-48.0.0'
+                ],
+                '1.20.1': [
+                    '1.20.1-47.1.0', '1.20.1-47.0.0', '1.20.1-46.0.0'
+                ],
+                '1.19.4': [
+                    '1.19.4-45.1.0', '1.19.4-45.0.0', '1.19.4-44.0.0'
+                ],
+                '1.19.3': [
+                    '1.19.3-44.1.0', '1.19.3-44.0.0', '1.19.3-43.0.0'
+                ],
+                '1.19.2': [
+                    '1.19.2-43.2.0', '1.19.2-43.1.7', '1.19.2-43.1.6', '1.19.2-43.1.5',
+                    '1.19.2-43.1.4', '1.19.2-43.1.3', '1.19.2-43.1.2', '1.19.2-43.1.1',
+                    '1.19.2-43.1.0', '1.19.2-43.0.0', '1.19.2-42.0.0', '1.19.2-41.0.0'
+                ],
+                '1.18.2': [
+                    '1.18.2-40.2.0', '1.18.2-40.1.0', '1.18.2-40.0.0', '1.18.2-39.0.0'
+                ]
+            }
+            
+            return available_versions
+            
+        except Exception as e:
+            logging.error(f"Error getting available Forge versions: {e}")
+            return {}
 
 class HostNetwork:
     """Manages distributed hosting network"""

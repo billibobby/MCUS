@@ -1,144 +1,184 @@
-# 🚀 Railway Deployment Guide for MCUS
+# Railway Deployment Guide for MCUS
 
-## Step 1: Prepare Your Project
+This guide helps you deploy MCUS to Railway for cloud hosting.
 
-Make sure your project has these files in the root directory:
+## 🚀 Quick Deploy
 
-```
-MCUS/
-├── web_app.py              # Main Flask application
-├── requirements.txt         # Python dependencies
-├── src/                    # Your Python modules
-│   ├── server_manager.py
-│   ├── mod_manager.py
-│   └── network_manager.py
-├── templates/              # HTML templates
-│   ├── base.html
-│   ├── dashboard.html
-│   ├── mods.html
-│   ├── hosting.html
-│   ├── players.html
-│   ├── settings.html
-│   ├── modrinth_search.html
-│   └── popular_mods.html
-├── server/                 # Minecraft server files (will be created)
-├── backups/                # World backups (will be created)
-└── config.json            # Configuration file (will be created)
-```
+### Option 1: Deploy from GitHub (Recommended)
 
-## Step 2: Create Railway Account
+1. **Fork the Repository**
+   - Go to the MCUS GitHub repository
+   - Click "Fork" to create your own copy
 
-1. **Go to** [railway.app](https://railway.app)
-2. **Sign up** with your GitHub account
-3. **Verify your email** if required
+2. **Deploy to Railway**
+   - Go to [Railway.app](https://railway.app)
+   - Sign in with your GitHub account
+   - Click "New Project"
+   - Select "Deploy from GitHub repo"
+   - Choose your forked MCUS repository
+   - Click "Deploy"
 
-## Step 3: Deploy Your Project
+3. **Configure Environment Variables** (Optional)
+   - In your Railway project dashboard
+   - Go to "Variables" tab
+   - Add any custom environment variables if needed
 
-### Option A: Deploy from GitHub (Recommended)
+4. **Access Your Deployment**
+   - Railway will provide a URL like: `https://your-app-name.railway.app`
+   - Click the URL to access your MCUS instance
 
-1. **Push your MCUS project to GitHub** (if not already done)
-2. **Go to Railway Dashboard**
-3. **Click "New Project"**
-4. **Select "Deploy from GitHub repo"**
-5. **Choose your MCUS repository**
-6. **Railway will automatically detect** it's a Python app
-7. **Click "Deploy"**
+### Option 2: Deploy from Local Files
 
-### Option B: Deploy from Local Files
-
-1. **Install Railway CLI**:
+1. **Install Railway CLI**
    ```bash
    npm install -g @railway/cli
    ```
 
-2. **Login to Railway**:
+2. **Login to Railway**
    ```bash
    railway login
    ```
 
-3. **Initialize project**:
+3. **Initialize Project**
    ```bash
    railway init
    ```
 
-4. **Deploy**:
+4. **Deploy**
    ```bash
    railway up
    ```
 
-## Step 4: Configure Environment Variables
+## ⚙️ Configuration Files
 
-In your Railway project dashboard:
+MCUS includes several configuration files for Railway deployment:
 
-1. **Go to "Variables" tab**
-2. **Add these environment variables**:
-
+### Procfile
 ```
-PORT=3000
-FLASK_ENV=production
-SECRET_KEY=your-super-secret-key-here-2024
+web: python web_app.py --port $PORT
 ```
+- Tells Railway how to start the application
+- Uses the `$PORT` environment variable provided by Railway
 
-## Step 5: Get Your Public URL
-
-1. **Go to "Settings" tab** in your Railway project
-2. **Copy the "Domain" URL** (e.g., `https://mcus-production-1234.up.railway.app`)
-3. **Share this URL** with your friends!
-
-## Step 6: Test Your Deployment
-
-1. **Open the Railway URL** in your browser
-2. **Test the features**:
-   - Dashboard loads correctly
-   - Can join hosting network
-   - Can search for mods
-   - Can manage settings
-
-## 🔧 Troubleshooting
-
-### Common Issues:
-
-1. **Build fails**: Check that all files are in the correct locations
-2. **Import errors**: Make sure `src/` folder contains all Python modules
-3. **Template errors**: Ensure all HTML files are in `templates/` folder
-4. **Port issues**: Set `PORT=3000` in environment variables
-
-### Check Logs:
-
-1. **Go to Railway Dashboard**
-2. **Click on your project**
-3. **Go to "Deployments" tab**
-4. **Click on the latest deployment**
-5. **Check "Logs"** for any errors
-
-## 📱 Sharing with Friends
-
-Once deployed, share this message with your friends:
-
+### railway.json
+```json
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "python web_app.py --port $PORT",
+    "healthcheckPath": "/",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
 ```
-🎮 MCUS - Minecraft Unified Server Management
-🌐 Access: [Your Railway URL]
-📱 Works on: Phone, Tablet, Computer
-🔧 Features:
-   • Mod management and downloads
-   • Server control and monitoring
-   • Player management
-   • Multi-computer hosting network
-   • Real-time status updates
+- Configures Railway deployment settings
+- Sets up health checks and restart policies
+
+### nixpacks.toml
+```toml
+[phases.setup]
+nixPkgs = ["python39", "openjdk21"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
+
+[phases.build]
+cmds = ["python setup.py"]
+
+[start]
+cmd = "python web_app.py --port $PORT"
 ```
+- Ensures Python 3.9 and Java 21 are installed
+- Installs dependencies and runs setup
 
-## 🎯 Next Steps
+## 🔧 Environment Variables
 
-1. **Test all features** with your friends
-2. **Customize the design** if needed
-3. **Add authentication** for security
-4. **Set up automatic backups**
-5. **Monitor usage** in Railway dashboard
+You can configure MCUS using environment variables in Railway:
 
-## 💰 Cost
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Web server port | `3000` |
+| `DEBUG` | Enable debug mode | `False` |
+| `JAVA_MEMORY` | Java memory allocation | `4G` |
+| `MINECRAFT_VERSION` | Default Minecraft version | `1.21.7` |
 
-- **Free tier**: $5 credit monthly (plenty for MCUS)
-- **No credit card required** for basic usage
-- **Automatic scaling** based on usage
+## 📊 Monitoring
 
-Your MCUS web interface will now be accessible to friends worldwide using the Railway URL! 
+Railway provides built-in monitoring:
+
+1. **Logs**: View real-time application logs
+2. **Metrics**: Monitor CPU, memory, and network usage
+3. **Health Checks**: Automatic health monitoring
+4. **Restarts**: Automatic restart on failure
+
+## 🔄 Updates
+
+To update your Railway deployment:
+
+1. **Push to GitHub**: Update your forked repository
+2. **Auto-Deploy**: Railway will automatically redeploy
+3. **Manual Deploy**: Or trigger manual deployment from Railway dashboard
+
+## 🚨 Important Notes
+
+### Limitations
+- **No Minecraft Server**: Railway is for the web interface only
+- **No File Persistence**: Server files won't persist between deployments
+- **Resource Limits**: Railway has CPU and memory limits
+
+### Best Practices
+- **Use for Web Interface**: Deploy the web interface to Railway
+- **Local Server**: Run the actual Minecraft server locally
+- **Backup Data**: Regularly backup your server files
+- **Monitor Usage**: Keep an eye on Railway usage limits
+
+## 🛠️ Troubleshooting
+
+### Common Issues
+
+1. **Build Fails**
+   - Check that all files are committed to GitHub
+   - Verify `requirements.txt` is correct
+   - Check Railway logs for specific errors
+
+2. **App Won't Start**
+   - Verify the Procfile is correct
+   - Check that `web_app.py` exists
+   - Review Railway logs for startup errors
+
+3. **Port Issues**
+   - Ensure the app uses `$PORT` environment variable
+   - Check that the app binds to `0.0.0.0`
+
+4. **Dependencies Missing**
+   - Verify `requirements.txt` includes all dependencies
+   - Check that `nixpacks.toml` specifies required packages
+
+### Getting Help
+
+- **Railway Docs**: [docs.railway.app](https://docs.railway.app)
+- **Railway Discord**: [discord.gg/railway](https://discord.gg/railway)
+- **MCUS Issues**: GitHub repository issues
+
+## 💰 Pricing
+
+Railway offers:
+- **Free Tier**: $5 credit monthly
+- **Pro Plan**: Pay-as-you-go pricing
+- **Team Plan**: Collaborative features
+
+## 🔗 Useful Links
+
+- [Railway Dashboard](https://railway.app/dashboard)
+- [Railway Documentation](https://docs.railway.app)
+- [Railway CLI](https://docs.railway.app/develop/cli)
+- [MCUS GitHub Repository](https://github.com/yourusername/MCUS)
+
+---
+
+**Happy deploying! 🚀** 
