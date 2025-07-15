@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block title %}System Diagnostics - MCUS{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <i class="fas fa-stethoscope me-2"></i>System Diagnostics
+                        </h3>
+                        <div>
+                            <a href="{{ url_for('fix_permissions') }}" class="btn btn-warning btn-sm">
+                                <i class="fas fa-wrench me-1"></i>Fix Permissions
+                            </a>
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-light btn-sm">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <strong>Comprehensive system diagnostics to help identify and resolve server startup issues.</strong>
+                        This page shows detailed information about your system configuration and common problems.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Requirements Check -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>System Requirements Check
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Required Components:</h6>
+                            <div class="requirement-item">
+                                <i class="fas fa-{% if diagnostics.java_available %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
+                                <strong>Java Installation:</strong>
+                                {% if diagnostics.java_available %}
+                                    <span class="text-success">{{ system_info.java_version or 'Available' }}</span>
+                                {% else %}
+                                    <span class="text-danger">Not found</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <i class="fas fa-{% if diagnostics.server_directory %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
+                                <strong>Server Directory:</strong>
+                                {% if diagnostics.server_directory %}
+                                    <span class="text-success">Exists</span>
+                                {% else %}
+                                    <span class="text-danger">Missing</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <i class="fas fa-{% if diagnostics.permissions %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
+                                <strong>Write Permissions:</strong>
+                                {% if diagnostics.permissions %}
+                                    <span class="text-success">OK</span>
+                                {% else %}
+                                    <span class="text-danger">No permission</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <i class="fas fa-{% if diagnostics.server_jar %}check text-success{% else %}times text-danger{% endif %} me-2"></i>
+                                <strong>Forge Server JAR:</strong>
+                                {% if diagnostics.server_jar %}
+                                    <span class="text-success">Found</span>
+                                {% else %}
+                                    <span class="text-danger">Not found</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>System Resources:</h6>
+                            <div class="requirement-item">
+                                <i class="fas fa-{% if diagnostics.memory_available %}check text-success{% else %}exclamation-triangle text-warning{% endif %} me-2"></i>
+                                <strong>Available Memory:</strong>
+                                {% if system_info.memory_available %}
+                                    <span class="{% if diagnostics.memory_available %}text-success{% else %}text-warning{% endif %}">
+                                        {{ system_info.memory_available }} ({{ system_info.memory_total }} total)
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">Unknown</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <i class="fas fa-{% if diagnostics.disk_space %}check text-success{% else %}exclamation-triangle text-warning{% endif %} me-2"></i>
+                                <strong>Disk Space:</strong>
+                                {% if system_info.disk_free %}
+                                    <span class="{% if diagnostics.disk_space %}text-success{% else %}text-warning{% endif %}">
+                                        {{ system_info.disk_free }} free ({{ system_info.disk_total }} total)
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">Unknown</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <i class="fas fa-info-circle text-info me-2"></i>
+                                <strong>Platform:</strong>
+                                <span class="text-info">{{ system_info.platform }}</span>
+                            </div>
+                            
+                            <div class="requirement-item">
+                                <i class="fas fa-info-circle text-info me-2"></i>
+                                <strong>Python Version:</strong>
+                                <span class="text-info">{{ system_info.python_version.split()[0] }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed System Information -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>System Information
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Current Directory:</strong></td>
+                            <td><code>{{ system_info.current_directory }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Server Directory:</strong></td>
+                            <td><code>{{ system_info.server_directory }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Server Directory Exists:</strong></td>
+                            <td>
+                                <span class="badge bg-{% if system_info.server_directory_exists %}success{% else %}danger{% endif %}">
+                                    {{ system_info.server_directory_exists }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Server Directory Writable:</strong></td>
+                            <td>
+                                <span class="badge bg-{% if system_info.server_directory_writable %}success{% else %}danger{% endif %}">
+                                    {{ system_info.server_directory_writable }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Java Path:</strong></td>
+                            <td><code>{{ system_info.java_path or 'Not found' }}</code></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Java Version:</strong></td>
+                            <td><code>{{ system_info.java_version or 'Unknown' }}</code></td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>Resource Usage
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if system_info.memory_total %}
+                    <div class="mb-3">
+                        <h6>Memory Usage:</h6>
+                        <div class="progress mb-2">
+                            {% set memory_used = ((system_info.memory_total | replace('GB', '') | int) - (system_info.memory_available | replace('GB', '') | int)) %}
+                            {% set memory_percent = (memory_used / (system_info.memory_total | replace('GB', '') | int) * 100) | int %}
+                            <div class="progress-bar bg-{% if memory_percent > 80 %}danger{% elif memory_percent > 60 %}warning{% else %}success{% endif %}" 
+                                 style="width: {{ memory_percent }}%">
+                                {{ memory_percent }}%
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            {{ system_info.memory_available }} available of {{ system_info.memory_total }} total
+                        </small>
+                    </div>
+                    {% endif %}
+                    
+                    {% if system_info.disk_total %}
+                    <div class="mb-3">
+                        <h6>Disk Usage:</h6>
+                        <div class="progress mb-2">
+                            {% set disk_used = ((system_info.disk_total | replace('GB', '') | int) - (system_info.disk_free | replace('GB', '') | int)) %}
+                            {% set disk_percent = (disk_used / (system_info.disk_total | replace('GB', '') | int) * 100) | int %}
+                            <div class="progress-bar bg-{% if disk_percent > 90 %}danger{% elif disk_percent > 80 %}warning{% else %}success{% endif %}" 
+                                 style="width: {{ disk_percent }}%">
+                                {{ disk_percent }}%
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            {{ system_info.disk_free }} free of {{ system_info.disk_total }} total
+                        </small>
+                    </div>
+                    {% endif %}
+                    
+                    {% if not system_info.memory_total %}
+                    <div class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Resource information unavailable (psutil not installed)
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Troubleshooting Guide -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-question-circle me-2"></i>Troubleshooting Guide
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Common Issues & Solutions:</h6>
+                            
+                            {% if not diagnostics.java_available %}
+                            <div class="alert alert-danger">
+                                <strong>Java Not Found:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>Download and install Java 8 or higher from <a href="https://adoptium.net" target="_blank">adoptium.net</a></li>
+                                    <li>Make sure Java is added to your system PATH</li>
+                                    <li>Restart your computer after installation</li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                            
+                            {% if not diagnostics.permissions %}
+                            <div class="alert alert-warning">
+                                <strong>Permission Issues:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>Run MCUS as administrator (Windows)</li>
+                                    <li>Check folder permissions in the server directory</li>
+                                    <li>Try the "Fix Permissions" button above</li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                            
+                            {% if not diagnostics.server_jar %}
+                            <div class="alert alert-info">
+                                <strong>No Forge Server JAR:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>Go to the Mods page and install Forge first</li>
+                                    <li>Choose a compatible Minecraft version</li>
+                                    <li>Wait for the installation to complete</li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                            
+                            {% if not diagnostics.memory_available %}
+                            <div class="alert alert-warning">
+                                <strong>Insufficient Memory:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <li>Close other applications to free up RAM</li>
+                                    <li>Consider upgrading your system memory</li>
+                                    <li>Use fewer mods to reduce memory usage</li>
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>Quick Actions:</h6>
+                            
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('fix_permissions') }}" class="btn btn-warning">
+                                    <i class="fas fa-wrench me-2"></i>Fix Permissions
+                                </a>
+                                
+                                <a href="{{ url_for('select_forge_version') }}" class="btn btn-primary">
+                                    <i class="fas fa-download me-2"></i>Install Forge
+                                </a>
+                                
+                                <a href="{{ url_for('mods') }}" class="btn btn-info">
+                                    <i class="fas fa-puzzle-piece me-2"></i>Manage Mods
+                                </a>
+                                
+                                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                                    <i class="fas fa-home me-2"></i>Back to Dashboard
+                                </a>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <h6>System Requirements:</h6>
+                                <ul class="small">
+                                    <li><strong>Java:</strong> Version 8 or higher</li>
+                                    <li><strong>Memory:</strong> 2GB+ available RAM</li>
+                                    <li><strong>Disk:</strong> 1GB+ free space</li>
+                                    <li><strong>OS:</strong> Windows, macOS, or Linux</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.requirement-item {
+    margin-bottom: 10px;
+    padding: 5px 0;
+}
+
+.requirement-item i {
+    width: 20px;
+}
+
+.progress {
+    height: 20px;
+}
+
+.progress-bar {
+    line-height: 20px;
+    font-size: 12px;
+}
+</style>
+{% endblock %} 

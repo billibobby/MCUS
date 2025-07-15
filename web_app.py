@@ -13,6 +13,7 @@ import logging
 from src.server_manager import ServerManager
 from src.mod_manager import ModManager
 from src.network_manager import NetworkManager, HostClient, HostInfo
+import sys
 
 app = Flask(__name__)
 app.secret_key = 'mcus_secret_key_2024'
@@ -756,25 +757,166 @@ def start_server():
     global server_manager, is_hosting, host_client
     
     if not is_hosting and server_manager:
-        if server_manager.start_server():
-            is_hosting = True
+        try:
+            # Check if server is already running
+            if server_manager.is_running:
+                flash('Server is already running', 'warning')
+                return redirect(url_for('dashboard'))
             
-            # Update host status
-            if host_client:
-                host_client.update_status({
-                    'status': 'online',
-                    'players': [],
-                    'memory_usage': 0.0,
-                    'cpu_usage': 0.0
-                })
+            # Get detailed startup information
+            startup_info = get_startup_diagnostics()
             
-            flash('Server started successfully', 'success')
-        else:
-            flash('Failed to start server. Check if Java is installed and Forge is available.', 'error')
+            # Start the server
+            if server_manager.start_server():
+                is_hosting = True
+                
+                # Update host status
+                if host_client:
+                    host_client.update_status({
+                        'status': 'online',
+                        'players': [],
+                        'memory_usage': 0.0,
+                        'cpu_usage': 0.0
+                    })
+                
+                flash('Server started successfully!', 'success')
+            else:
+                # Provide detailed error information
+                error_details = get_server_error_details()
+                flash(f'Failed to start server. {error_details}', 'error')
+                
+        except Exception as e:
+            logging.error(f"Server startup error: {e}")
+            flash(f'Server startup error: {str(e)}', 'error')
     else:
-        flash('Server is already running', 'warning')
+        flash('Server is already running or server manager not initialized', 'warning')
     
     return redirect(url_for('dashboard'))
+
+def get_startup_diagnostics():
+    """Get comprehensive startup diagnostics"""
+    diagnostics = {
+        'java_available': False,
+        'java_version': None,
+        'server_directory': False,
+        'server_jar': False,
+        'permissions': False,
+        'memory_available': False,
+        'disk_space': False
+    }
+    
+    try:
+        # Check Java
+        result = subprocess.run(['java', '-version'], capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            diagnostics['java_available'] = True
+            # Extract version from stderr
+            import re
+            version_match = re.search(r'"([^"]+)"', result.stderr)
+            if version_match:
+                diagnostics['java_version'] = version_match.group(1)
+        
+        # Check server directory
+        server_dir = Path("server")
+        if server_dir.exists():
+            diagnostics['server_directory'] = True
+            
+            # Check permissions
+            try:
+                test_file = server_dir / ".test_write"
+                test_file.write_text("test")
+                test_file.unlink()
+                diagnostics['permissions'] = True
+            except:
+                pass
+            
+            # Check for server JAR
+            for file in server_dir.glob("*.jar"):
+                if "forge" in file.name.lower() or "server" in file.name.lower():
+                    diagnostics['server_jar'] = True
+                    break
+        
+        # Check system resources
+        try:
+            import psutil
+            memory = psutil.virtual_memory()
+            if memory.available >= 2 * 1024**3:  # 2GB
+                diagnostics['memory_available'] = True
+            
+            disk = psutil.disk_usage(str(server_dir))
+            if disk.free >= 1024**3:  # 1GB
+                diagnostics['disk_space'] = True
+        except ImportError:
+            # psutil not available, assume resources are sufficient
+            diagnostics['memory_available'] = True
+            diagnostics['disk_space'] = True
+            
+    except Exception as e:
+        logging.error(f"Diagnostics error: {e}")
+    
+    return diagnostics
+
+def get_server_error_details():
+    """Get detailed error information for server startup failures"""
+    try:
+        # Check common issues
+        issues = []
+        
+        # Check Java
+        try:
+            result = subprocess.run(['java', '-version'], capture_output=True, text=True, timeout=5)
+            if result.returncode != 0:
+                issues.append("Java not installed or not in PATH")
+        except FileNotFoundError:
+            issues.append("Java not found - please install Java 8 or higher")
+        except subprocess.TimeoutExpired:
+            issues.append("Java command timed out")
+        
+        # Check server directory
+        server_dir = Path("server")
+        if not server_dir.exists():
+            issues.append("Server directory does not exist")
+        else:
+            try:
+                test_file = server_dir / ".test_write"
+                test_file.write_text("test")
+                test_file.unlink()
+            except PermissionError:
+                issues.append("No write permission to server directory")
+            except Exception as e:
+                issues.append(f"Cannot write to server directory: {e}")
+        
+        # Check for server JAR
+        server_jar_found = False
+        if server_dir.exists():
+            for file in server_dir.glob("*.jar"):
+                if "forge" in file.name.lower() or "server" in file.name.lower():
+                    server_jar_found = True
+                    break
+        
+        if not server_jar_found:
+            issues.append("No Forge server JAR found - please install Forge first")
+        
+        # Check system resources
+        try:
+            import psutil
+            memory = psutil.virtual_memory()
+            if memory.available < 2 * 1024**3:  # Less than 2GB
+                issues.append(f"Insufficient memory: {memory.available // (1024**3)}GB available, 2GB+ recommended")
+            
+            disk = psutil.disk_usage(str(server_dir))
+            if disk.free < 1024**3:  # Less than 1GB
+                issues.append(f"Insufficient disk space: {disk.free // (1024**3)}GB available, 1GB+ recommended")
+        except ImportError:
+            pass  # psutil not available
+        
+        if issues:
+            return "Issues found: " + "; ".join(issues)
+        else:
+            return "Unknown error occurred during startup"
+            
+    except Exception as e:
+        return f"Error checking system: {str(e)}"
 
 @app.route('/stop_server')
 def stop_server():
@@ -981,6 +1123,96 @@ def backup_world():
         flash('Server manager not initialized', 'error')
     
     return redirect(url_for('dashboard'))
+
+@app.route('/diagnostics')
+def diagnostics():
+    """Show detailed system diagnostics"""
+    diagnostics_info = get_startup_diagnostics()
+    
+    # Get additional system information
+    system_info = {
+        'platform': os.name,
+        'python_version': sys.version,
+        'current_directory': os.getcwd(),
+        'server_directory': str(Path("server").absolute()),
+        'server_directory_exists': Path("server").exists(),
+        'server_directory_writable': False,
+        'java_path': None,
+        'java_version': None,
+        'memory_total': None,
+        'memory_available': None,
+        'disk_total': None,
+        'disk_free': None
+    }
+    
+    # Check server directory permissions
+    try:
+        server_dir = Path("server")
+        test_file = server_dir / ".test_write"
+        test_file.write_text("test")
+        test_file.unlink()
+        system_info['server_directory_writable'] = True
+    except:
+        pass
+    
+    # Get Java information
+    try:
+        result = subprocess.run(['java', '-version'], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            system_info['java_path'] = 'java'
+            import re
+            version_match = re.search(r'"([^"]+)"', result.stderr)
+            if version_match:
+                system_info['java_version'] = version_match.group(1)
+    except:
+        pass
+    
+    # Get system resources
+    try:
+        import psutil
+        memory = psutil.virtual_memory()
+        system_info['memory_total'] = f"{memory.total // (1024**3)}GB"
+        system_info['memory_available'] = f"{memory.available // (1024**3)}GB"
+        
+        disk = psutil.disk_usage(str(Path("server")))
+        system_info['disk_total'] = f"{disk.total // (1024**3)}GB"
+        system_info['disk_free'] = f"{disk.free // (1024**3)}GB"
+    except ImportError:
+        pass
+    
+    return render_template('diagnostics.html', diagnostics=diagnostics_info, system_info=system_info)
+
+@app.route('/fix_permissions')
+def fix_permissions():
+    """Attempt to fix common permission issues"""
+    try:
+        server_dir = Path("server")
+        
+        # Create server directory if it doesn't exist
+        server_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create necessary subdirectories
+        subdirs = ['mods', 'config', 'logs', 'world', 'backups']
+        for subdir in subdirs:
+            subdir_path = server_dir / subdir
+            subdir_path.mkdir(exist_ok=True)
+        
+        # Try to set permissions (Windows doesn't have chmod)
+        if os.name != 'nt':
+            try:
+                os.chmod(server_dir, 0o755)
+                for subdir in subdirs:
+                    subdir_path = server_dir / subdir
+                    os.chmod(subdir_path, 0o755)
+            except:
+                pass
+        
+        flash('Permission fix attempted. Please try starting the server again.', 'info')
+        
+    except Exception as e:
+        flash(f'Failed to fix permissions: {str(e)}', 'error')
+    
+    return redirect(url_for('diagnostics'))
 
 if __name__ == '__main__':
     # Initialize managers
