@@ -774,8 +774,22 @@ def select_forge_version():
         # Get detected versions
         detected_versions = server_manager.detect_forge_versions()
         
-        # Get available versions for installation
-        available_versions = server_manager.get_available_forge_versions()
+        # Get available versions for installation and format them properly
+        raw_versions = server_manager.get_available_forge_versions()
+        
+        # Format the data structure for the template
+        available_versions = {}
+        for mc_version, version_list in raw_versions.items():
+            available_versions[mc_version] = {
+                'name': f'Minecraft {mc_version}',
+                'description': f'Stable Minecraft {mc_version} with Forge support',
+                'status': 'Latest Stable' if mc_version == '1.20.4' else 'Stable',
+                'mod_count': '1000+',
+                'java_version': '17+',
+                'performance': 'High',
+                'stability': 'Very Stable',
+                'builds': version_list  # This is the list of version strings
+            }
         
         # Get current server JAR
         current_jar = server_manager.find_server_jar()

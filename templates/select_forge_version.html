@@ -42,7 +42,7 @@
                                     <span class="stat-label">Minecraft Versions</span>
                                 </div>
                                 <div class="stat-item">
-                                    <span class="stat-number">{{ available_versions.values() | map(attribute='builds') | map('length') | sum }}</span>
+                                    <span class="stat-number">{{ available_versions.values() | map('length') | sum }}</span>
                                     <span class="stat-label">Forge Builds</span>
                                 </div>
                             </div>
@@ -186,12 +186,12 @@
                             <label class="form-label fw-bold">Forge Build:</label>
                             <select class="form-select" name="forge_build" id="forge_{{ mc_version }}">
                                 {% for build in version_info.builds %}
-                                <option value="{{ build.version }}" 
-                                        {% if build.type == 'recommended' %}selected{% endif %}
-                                        class="text-{% if build.type == 'recommended' %}success{% elif build.type == 'latest' %}primary{% else %}secondary{% endif %}">
-                                    {% if build.type == 'recommended' %}🟢{% elif build.type == 'latest' %}🔵{% else %}⚪{% endif %}
-                                    {{ build.version }}
-                                    {% if build.type == 'recommended' %}(Recommended){% elif build.type == 'latest' %}(Latest){% endif %}
+                                <option value="{{ build }}" 
+                                        {% if 'recommended' in build or 'latest' in build %}selected{% endif %}
+                                        class="text-{% if 'recommended' in build %}success{% elif 'latest' in build %}primary{% else %}secondary{% endif %}">
+                                    {% if 'recommended' in build %}🟢{% elif 'latest' in build %}🔵{% else %}⚪{% endif %}
+                                    {{ build }}
+                                    {% if 'recommended' in build %}(Recommended){% elif 'latest' in build %}(Latest){% endif %}
                                 </option>
                                 {% endfor %}
                             </select>
@@ -200,9 +200,9 @@
                         <!-- Build Details -->
                         <div class="build-details small text-muted">
                             <div class="mb-2">
-                                <strong>Latest Build:</strong> {{ version_info.builds[0].version }}
-                                <br><strong>Release Date:</strong> {{ version_info.builds[0].date }}
-                                <br><strong>Notes:</strong> {{ version_info.builds[0].notes }}
+                                <strong>Latest Build:</strong> {{ version_info.builds[0] if version_info.builds else 'None' }}
+                                <br><strong>Available Builds:</strong> {{ version_info.builds|length }}
+                                <br><strong>Notes:</strong> Select a build to install
                             </div>
                         </div>
                         
