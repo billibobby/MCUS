@@ -18,7 +18,7 @@ class UpdateChecker:
         self.repo_name = repo_name
         self.github_api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
         self.update_cache_file = Path("logs/update_cache.json")
-        self.current_version = "1.0.0"  # Update this when you release new versions
+        self.current_version = "1.1.0"  # Update this when you release new versions
         
         # Ensure logs directory exists
         self.update_cache_file.parent.mkdir(exist_ok=True)
