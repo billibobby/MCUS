@@ -248,7 +248,7 @@ def popular_mods():
     
     mods = []
     if mod_manager:
-        mods = mod_manager.get_popular_modrinth_mods(20)
+        mods = mod_manager.get_popular_modrinth_mods(30)
     
     return render_template('popular_mods.html', mods=mods)
 
@@ -273,6 +273,43 @@ def download_mod(project_id):
         flash('Failed to download mod', 'error')
     
     return redirect(url_for('mods'))
+
+@app.route('/install_popular_pack', methods=['POST'])
+def install_popular_pack():
+    global mod_manager
+    
+    if not mod_manager:
+        flash('Mod manager not initialized', 'error')
+        return redirect(url_for('popular_mods'))
+    
+    # Get popular mods
+    popular_mods = mod_manager.get_popular_modrinth_mods(10)  # Top 10 most popular
+    
+    success_count = 0
+    failed_count = 0
+    
+    for mod in popular_mods:
+        try:
+            # Get latest version
+            latest_version = mod_manager.get_latest_modrinth_version(mod['id'])
+            if latest_version:
+                # Download mod
+                if mod_manager.download_mod_from_modrinth(mod['id'], latest_version['id']):
+                    success_count += 1
+                else:
+                    failed_count += 1
+            else:
+                failed_count += 1
+        except Exception as e:
+            failed_count += 1
+            logging.error(f"Failed to install {mod['name']}: {e}")
+    
+    if success_count > 0:
+        flash(f'Successfully installed {success_count} popular mods! {failed_count} failed.', 'success')
+    else:
+        flash('Failed to install any mods. Please try installing them individually.', 'error')
+    
+    return redirect(url_for('popular_mods'))
 
 @app.route('/upload_mod', methods=['POST'])
 def upload_mod():
@@ -434,10 +471,21 @@ def install_forge():
     global server_manager
     
     if server_manager:
-        if server_manager.install_forge():
-            flash('Forge installed successfully', 'success')
-        else:
-            flash('Failed to install Forge. Please download manually from https://files.minecraftforge.net/', 'error')
+        try:
+            # Check if Forge is already installed
+            server_jar = server_manager.find_server_jar()
+            if server_jar:
+                flash('Forge is already installed!', 'info')
+                return redirect(url_for('mods'))
+            
+            flash('Installing Forge... This may take a few minutes. Please wait.', 'info')
+            
+            if server_manager.install_forge():
+                flash('Forge installed successfully! You can now start your server.', 'success')
+            else:
+                flash('Failed to install Forge automatically. Please try again or download manually from https://files.minecraftforge.net/', 'error')
+        except Exception as e:
+            flash(f'Error installing Forge: {str(e)}', 'error')
     else:
         flash('Server manager not initialized', 'error')
     

@@ -209,7 +209,7 @@ class ModManager:
             logging.error(f"Failed to download mod: {e}")
             return False
             
-    def get_popular_modrinth_mods(self, limit: int = 20) -> List[Dict]:
+    def get_popular_modrinth_mods(self, limit: int = 30) -> List[Dict]:
         """Get popular mods from Modrinth"""
         try:
             # Search for popular mods
@@ -238,7 +238,10 @@ class ModManager:
                     'downloads': hit.get('downloads', 0),
                     'followers': hit.get('followers', 0),
                     'author': hit.get('author', 'Unknown'),
-                    'categories': hit.get('categories', [])
+                    'categories': hit.get('categories', []),
+                    'icon_url': hit.get('icon_url'),
+                    'date_created': hit.get('date_created'),
+                    'date_modified': hit.get('date_modified')
                 }
                 mods.append(mod_info)
                 
