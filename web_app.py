@@ -364,7 +364,7 @@ def start_server():
             
             flash('Server started successfully', 'success')
         else:
-            flash('Failed to start server', 'error')
+            flash('Failed to start server. Check if Java is installed and Forge is available.', 'error')
     else:
         flash('Server is already running', 'warning')
     

@@ -44,11 +44,13 @@ class ServerManager:
             server_jar = self.find_server_jar()
             if not server_jar:
                 # Try to install Forge automatically
+                logging.info("No server JAR found. Attempting to install Forge...")
                 if self.install_forge():
                     server_jar = self.find_server_jar()
                 
             if not server_jar:
-                raise Exception("No server jar found. Please install Forge first.")
+                logging.error("No server JAR found after Forge installation attempt")
+                return False
                 
             # Create server.properties
             self.create_server_properties()
@@ -243,9 +245,8 @@ class ServerManager:
                     logging.warning(f"Error with Forge {forge_version}: {e}")
                     continue
             
-            # If all versions failed, try manual download
-            logging.info("All automatic Forge installations failed. Please download manually.")
-            webbrowser.open("https://files.minecraftforge.net/")
+            # If all versions failed, log the issue
+            logging.error("All automatic Forge installations failed. Please install Forge manually.")
             return False
             
         except Exception as e:
